@@ -1,0 +1,219 @@
+<title>Testseite</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: eine ruhige Spalte – Kopf mit Status, darunter ein Prüfprotokoll und ein Live-Panel nebeneinander */
+  :root {
+    --bg: #f3f5fa;
+    --surface: #ffffff;
+    --fg: #172036;
+    --muted: #5a6680;
+    --line: #dde2ee;
+    --accent: #2b4dd8;
+    --ok: #1a8a54;
+    --ok-soft: #e1f3ea;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1422; --surface: #171e31; --fg: #e6eaf5; --muted: #98a3bd;
+      --line: #28314a; --accent: #8ea4ff; --ok: #4fd18f; --ok-soft: #173326;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1422; --surface: #171e31; --fg: #e6eaf5; --muted: #98a3bd;
+    --line: #28314a; --accent: #8ea4ff; --ok: #4fd18f; --ok-soft: #173326;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding-block: 56px 72px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid;
+    gap: 40px;
+  }
+
+  header { display: grid; gap: 14px; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; width: fit-content;
+    padding: 4px 12px 4px 10px; border-radius: 999px;
+    background: var(--ok-soft); color: var(--ok);
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  h1 {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(44px, 9vw, 84px); line-height: 1; letter-spacing: -.02em;
+    margin: 0; text-wrap: balance;
+  }
+  .lede { margin: 0; max-width: 60ch; color: var(--muted); font-size: 19px; }
+
+  .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+  section { min-width: 0; display: grid; gap: 14px; }
+  h2 {
+    margin: 0; font-family: var(--font-mono); font-weight: 500; font-size: 13px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+
+  .checks { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .checks li {
+    display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px;
+    padding: 13px 0; border-bottom: 1px solid var(--line);
+  }
+  .mark {
+    width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+    border: 1.5px solid var(--line); color: transparent; font-size: 13px; font-weight: 700;
+    transition: background .3s, border-color .3s, color .3s;
+  }
+  .checks li.pass .mark { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+  .checks .what { font-weight: 600; }
+  .checks .note { font-family: var(--font-mono); font-size: 13px; color: var(--muted); text-align: right; }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; display: grid; gap: 18px;
+  }
+  .clock {
+    font-family: var(--font-mono); font-size: clamp(34px, 6vw, 44px); font-weight: 500;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1;
+  }
+  .date { color: var(--muted); margin-top: 6px; }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 15px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: var(--font-mono); font-size: 14px; overflow-wrap: anywhere; text-align: right; }
+
+  .tap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 18px; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 10px 18px; border-radius: 10px; border: none;
+    background: var(--accent); color: var(--surface);
+    transition: transform .1s;
+  }
+  button:active { transform: scale(.97); }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="status"><span class="dot"></span>Online</span>
+    <h1>Testseite</h1>
+    <p class="lede">Wenn du das hier lesen kannst, ist die Seite erfolgreich veröffentlicht. Unten prüft sie sich selbst und zeigt ein paar Live-Werte aus deinem Browser.</p>
+  </header>
+
+  <div class="grid">
+    <section aria-labelledby="h-checks">
+      <h2 id="h-checks">Prüfprotokoll</h2>
+      <ul class="checks">
+        <li class="pass" id="c-html"><span class="mark">✓</span><span class="what">HTML geladen</span><span class="note">ok</span></li>
+        <li id="c-css"><span class="mark">✓</span><span class="what">Stylesheet aktiv</span><span class="note">…</span></li>
+        <li id="c-js"><span class="mark">✓</span><span class="what">JavaScript läuft</span><span class="note">…</span></li>
+        <li id="c-fonts"><span class="mark">✓</span><span class="what">Schriften geladen</span><span class="note">…</span></li>
+        <li id="c-net"><span class="mark">✓</span><span class="what">Verbindung</span><span class="note">…</span></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="h-live">
+      <h2 id="h-live">Live</h2>
+      <div class="panel">
+        <div>
+          <div class="clock" id="clock">--:--:--</div>
+          <div class="date" id="date">&nbsp;</div>
+        </div>
+        <dl>
+          <dt>Fenster</dt><dd id="i-size">–</dd>
+          <dt>Sprache</dt><dd id="i-lang">–</dd>
+          <dt>Zeitzone</dt><dd id="i-tz">–</dd>
+          <dt>Farbschema</dt><dd id="i-theme">–</dd>
+        </dl>
+        <div class="tap">
+          <button type="button" id="tap">Klick-Test</button>
+          <span class="count" id="count">0 Klicks</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>Erstellt am 4. November 2026 · reine HTML-Seite ohne Server-Logik</footer>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const pass = (id, note) => { const el = $(id); el.classList.add('pass'); el.querySelector('.note').textContent = note; };
+
+  // CSS: prüfen, ob unsere Tokens angekommen sind
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  if (accent) pass('c-css', 'ok');
+
+  pass('c-js', 'ok');
+
+  const net = () => {
+    const el = $('c-net');
+    if (navigator.onLine) pass('c-net', 'online');
+    else { el.classList.remove('pass'); el.querySelector('.note').textContent = 'offline'; }
+  };
+  net();
+  addEventListener('online', net); addEventListener('offline', net);
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      const ok = document.fonts.check('700 20px "Bricolage Grotesque"');
+      if (ok) pass('c-fonts', 'ok');
+      else $('c-fonts').querySelector('.note').textContent = 'Ersatzschrift';
+    });
+  }
+
+  const lang = navigator.language || 'de-DE';
+  const tick = () => {
+    const now = new Date();
+    $('clock').textContent = now.toLocaleTimeString('de-DE');
+    $('date').textContent = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  tick(); setInterval(tick, 1000);
+
+  const size = () => { $('i-size').textContent = innerWidth + ' × ' + innerHeight + ' px'; };
+  size(); addEventListener('resize', size);
+
+  $('i-lang').textContent = lang;
+  try { $('i-tz').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { $('i-tz').textContent = 'unbekannt'; }
+
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  const theme = () => {
+    const forced = document.documentElement.getAttribute('data-theme');
+    const dark = forced ? forced === 'dark' : mq.matches;
+    $('i-theme').textContent = dark ? 'dunkel' : 'hell';
+  };
+  theme(); mq.addEventListener && mq.addEventListener('change', theme);
+
+  let n = 0;
+  $('tap').addEventListener('click', () => {
+    n++;
+    $('count').textContent = n + (n === 1 ? ' Klick' : ' Klicks');
+  });
+</script>
