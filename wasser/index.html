@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#e2eaf0">
+<title>Messbecher</title>
+<meta name="description" content="Das ganze Display ist voll Wasser. Kipp das Handy, dann läuft es über den Rand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  /* Layout: das Display ist der Becher. Skala am linken Rand, Anzeige oben, Startkarte schwimmt im Wasser. */
+  :root {
+    --bg: #e2eaf0;
+    --ink: #0f2435;
+    --muted: #4d6375;
+    --scale: rgba(15, 36, 53, .38);
+    --accent: #1667d0;
+    --card: rgba(255, 255, 255, .9);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    color-scheme: light;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+    overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #scale { pointer-events: none; }
+
+  .hud {
+    position: fixed; z-index: 2;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .level {
+    font-family: var(--font-mono); font-weight: 500; font-size: 14px;
+    font-variant-numeric: tabular-nums; color: var(--ink);
+    background: var(--card); padding: 6px 12px; border-radius: 999px;
+    box-shadow: 0 1px 0 rgba(15, 36, 53, .08);
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border: none;
+    border-radius: 999px; padding: 8px 16px;
+    background: var(--ink); color: #fff;
+  }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  button:active { transform: scale(.97); }
+
+  .intro {
+    position: fixed; z-index: 3;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    margin: 0 auto; max-width: 420px;
+    background: var(--card); border-radius: 20px; padding: 22px 22px 20px;
+    display: grid; gap: 12px;
+    box-shadow: 0 12px 40px rgba(6, 30, 70, .25);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .intro h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 800;
+    font-size: 34px; line-height: 1.05; letter-spacing: -.02em; text-wrap: balance;
+  }
+  .intro p { margin: 0; color: var(--muted); }
+  .intro .hint { font-size: 14px; }
+  .intro button { justify-self: start; padding: 12px 24px; font-size: 17px; background: var(--accent); }
+
+  .toast {
+    position: fixed; z-index: 3;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    margin: 0 auto; max-width: 420px;
+    background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
+    font-size: 15px;
+  }
+</style>
+</head>
+<body>
+<canvas id="sim" aria-label="Wassersimulation"></canvas>
+<canvas id="scale" aria-hidden="true"></canvas>
+
+<div class="hud" hidden id="hud">
+  <span class="level" id="level">440 ml</span>
+  <button type="button" id="refill">Nachfüllen</button>
+</div>
+
+<div class="intro" id="intro">
+  <h1>Messbecher</h1>
+  <p>Dein Display ist bis oben voll Wasser. Halte das Handy aufrecht und kipp es zur Seite, dann läuft es über den Rand.</p>
+  <p class="hint">Sperr vorher die Bildschirmdrehung, sonst dreht sich die Seite mit und das Wasser bleibt drin.</p>
+  <button type="button" id="start">Starten</button>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const sim = document.getElementById('sim');
+  const ctx = sim.getContext('2d');
+  const scaleCv = document.getElementById('scale');
+  const sctx = scaleCv.getContext('2d');
+  const $level = document.getElementById('level');
+  const $toast = document.getElementById('toast');
+
+  // ---------- Parameter ----------
+  const FILL = 0.88;          // Füllhöhe beim Start
+  const CAPACITY_ML = 500;    // ganze Displayhöhe = 500 ml
+  const CELL = 4;             // Auflösung des Wasserbilds in CSS-px
+  const MAX = 4000;
+  const SUBSTEPS = 3;
+
+  let W = 0, H = 0;
+  let s = 10, h = 22, rho0 = 1, F0 = 1, T = 1, Rk = 16;
+  const K = 0.12, KN = 0.25;   // Steifigkeit (Druck / Nahdruck)
+  let G = 0.1;                 // Schwerkraft pro Teilschritt
+
+  const X = new Float32Array(MAX), Y = new Float32Array(MAX);
+  const PX = new Float32Array(MAX), PY = new Float32Array(MAX);
+  const VX = new Float32Array(MAX), VY = new Float32Array(MAX);
+  const TX = new Float32Array(MAX), TY = new Float32Array(MAX);
+  const VISC = 0.12;
+  let n = 0, nStart = 1;
+
+  // Schwerkraft in Bildschirmkoordinaten (y nach unten), Länge 0..1
+  let gX = 0, gY = 1;
+  let tgX = 0, tgY = 1;
+
+  // ---------- Gitter für Nachbarsuche ----------
+  let cols = 0, rows = 0, cellCount, cellStart, sorted = new Int32Array(MAX), cellOf = new Int32Array(MAX);
+  const nbJ = new Int32Array(512), nbQ = new Float32Array(512), nbUX = new Float32Array(512), nbUY = new Float32Array(512);
+
+  // ---------- Bild ----------
+  let gw = 0, gh = 0, field, img;
+
+  function latticeSum(spacing, radius, fn) {
+    // Summe über ein Sechseck-Gitter um einen inneren Punkt
+    let sum = 0;
+    const dy = spacing * Math.sqrt(3) / 2;
+    const R = Math.ceil(radius / dy) + 1;
+    for (let r = -R; r <= R; r++) {
+      const off = (r & 1) ? spacing / 2 : 0;
+      for (let c = -R - 1; c <= R + 1; c++) {
+        const x = c * spacing + off, y = r * dy;
+        const d = Math.hypot(x, y);
+        if (d > 0 && d < radius) sum += fn(d);
+      }
+    }
+    return sum;
+  }
+
+  function setup(keepParticles) {
+    const nW = innerWidth, nH = innerHeight;
+    if (keepParticles && W && H) {
+      const sx = nW / W, sy = nH / H;
+      for (let i = 0; i < n; i++) { X[i] *= sx; Y[i] *= sy; PX[i] *= sx; PY[i] *= sy; }
+    }
+    W = nW; H = nH;
+
+    if (!keepParticles) {
+      const target = Math.min(2400, Math.max(900, Math.round(W * H / 190)));
+      const area = W * H * FILL;
+      s = Math.sqrt(area * 2 / (Math.sqrt(3) * target));
+      h = s * 2.1;
+      rho0 = latticeSum(s, h, d => (1 - d / h) ** 2);
+      Rk = s * 1.7;
+      F0 = latticeSum(s, Rk, d => (1 - (d * d) / (Rk * Rk)) ** 3) + 1;
+      T = F0 * 0.3;
+      G = 0.006 * h / (SUBSTEPS * SUBSTEPS) * 9;
+    }
+
+    cols = Math.ceil(W / h) + 3;
+    rows = Math.ceil((H + 3 * h) / h) + 2;
+    cellCount = new Int32Array(cols * rows + 1);
+    cellStart = new Int32Array(cols * rows + 1);
+
+    gw = Math.ceil(W / CELL); gh = Math.ceil(H / CELL);
+    sim.width = gw; sim.height = gh;
+    field = new Float32Array(gw * gh);
+    img = ctx.createImageData(gw, gh);
+
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    scaleCv.width = Math.round(W * dpr); scaleCv.height = Math.round(H * dpr);
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawScale();
+
+    if (!keepParticles) fill();
+  }
+
+  function fill() {
+    n = 0;
+    const r = s * 0.5;
+    const dy = s * Math.sqrt(3) / 2;
+    const top = H * (1 - FILL);
+    let row = 0;
+    for (let y = H - r; y > top && n < MAX; y -= dy, row++) {
+      for (let x = r + ((row & 1) ? s / 2 : 0); x < W - r && n < MAX; x += s) {
+        X[n] = PX[n] = x + (Math.random() - .5) * 0.02 * s;
+        Y[n] = PY[n] = y;
+        VX[n] = VY[n] = 0;
+        n++;
+      }
+    }
+    nStart = n;
+    // Vorab zur Ruhe kommen lassen, damit es beim Start nicht schwappt
+    const sx = gX, sy = gY;
+    gX = 0; gY = 1; damp = 0.85;
+    for (let k = 0; k < 160; k++) step();
+    damp = 0.97;
+    for (let k = 0; k < 80; k++) step();
+    damp = 0.99; gX = sx; gY = sy;
+    for (let i = 0; i < n; i++) { VX[i] = VY[i] = 0; PX[i] = X[i]; PY[i] = Y[i]; }
+    updateLevel();
+  }
+
+  function drawScale() {
+    sctx.clearRect(0, 0, W, H);
+    sctx.strokeStyle = 'rgba(15,36,53,.38)';
+    sctx.fillStyle = 'rgba(15,36,53,.55)';
+    sctx.lineWidth = 1.5;
+    sctx.font = '500 11px "JetBrains Mono", ui-monospace, monospace';
+    sctx.textBaseline = 'middle';
+    const left = Math.max(10, (window.visualViewport ? 0 : 0) + 10);
+    for (let ml = 50; ml < CAPACITY_ML; ml += 50) {
+      const y = H - (ml / CAPACITY_ML) * H;
+      const big = ml % 100 === 0;
+      sctx.beginPath();
+      sctx.moveTo(left, y);
+      sctx.lineTo(left + (big ? 18 : 10), y);
+      sctx.stroke();
+      if (big) sctx.fillText(ml + ' ml', left + 24, y);
+    }
+  }
+
+  // ---------- Physik (Clavet et al., doppelte Dichte-Relaxation) ----------
+  function buildGrid() {
+    cellCount.fill(0);
+    for (let i = 0; i < n; i++) {
+      let cx = Math.floor(X[i] / h) + 1, cy = Math.floor((Y[i] + 2 * h) / h);
+      if (cx < 0) cx = 0; else if (cx >= cols) cx = cols - 1;
+      if (cy < 0) cy = 0; else if (cy >= rows) cy = rows - 1;
+      const c = cy * cols + cx;
+      cellOf[i] = c; cellCount[c]++;
+    }
+    let acc = 0;
+    for (let c = 0; c < cols * rows; c++) { cellStart[c] = acc; acc += cellCount[c]; cellCount[c] = cellStart[c]; }
+    cellStart[cols * rows] = acc;
+    for (let i = 0; i < n; i++) sorted[cellCount[cellOf[i]]++] = i;
+  }
+
+  let damp = 0.99;
+  function step() {
+    const r = s * 0.5;
+    const vmax = h * 0.45;
+    const gx = gX * G, gy = gY * G;
+
+    for (let i = 0; i < n; i++) {
+      VX[i] += gx; VY[i] += gy;
+      PX[i] = X[i]; PY[i] = Y[i];
+      X[i] += VX[i]; Y[i] += VY[i];
+    }
+
+    buildGrid();
+    const hh = h * h;
+    for (let i = 0; i < n; i++) {
+      const xi = X[i], yi = Y[i];
+      const c = cellOf[i], cx = c % cols, cy = (c / cols) | 0;
+      let rho = 0, rhoN = 0, m = 0;
+      for (let oy = -1; oy <= 1; oy++) {
+        const yy = cy + oy; if (yy < 0 || yy >= rows) continue;
+        for (let ox = -1; ox <= 1; ox++) {
+          const xx = cx + ox; if (xx < 0 || xx >= cols) continue;
+          const cc = yy * cols + xx;
+          for (let k = cellStart[cc], e = cellStart[cc + 1]; k < e; k++) {
+            const j = sorted[k]; if (j === i) continue;
+            const dx = X[j] - xi, dy = Y[j] - yi;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= hh || d2 < 1e-6 || m >= 512) continue;
+            const d = Math.sqrt(d2), q = 1 - d / h;
+            rho += q * q; rhoN += q * q * q;
+            nbJ[m] = j; nbQ[m] = q; nbUX[m] = dx / d; nbUY[m] = dy / d; m++;
+          }
+        }
+      }
+      const P = K * (rho - rho0), PN = KN * rhoN;
+      let ax = 0, ay = 0;
+      for (let t = 0; t < m; t++) {
+        const q = nbQ[t];
+        const D = (P * q + PN * q * q) * h * 0.5;
+        const dx = nbUX[t] * D, dy = nbUY[t] * D;
+        X[nbJ[t]] += dx; Y[nbJ[t]] += dy;
+        ax -= dx; ay -= dy;
+      }
+      X[i] += ax; Y[i] += ay;
+    }
+
+    for (let i = 0; i < n; i++) {
+      // Wände: links, rechts, unten. Oben ist offen.
+      if (X[i] < r) { X[i] = r + Math.random() * 0.01; PX[i] += (X[i] - PX[i]) * 0.3; }
+      else if (X[i] > W - r) { X[i] = W - r - Math.random() * 0.01; PX[i] += (X[i] - PX[i]) * 0.3; }
+      if (Y[i] > H - r) { Y[i] = H - r - Math.random() * 0.01; PY[i] += (Y[i] - PY[i]) * 0.3; }
+
+      let vx = (X[i] - PX[i]) * damp, vy = (Y[i] - PY[i]) * damp;
+      const v2 = vx * vx + vy * vy;
+      if (v2 > vmax * vmax) { const f = vmax / Math.sqrt(v2); vx *= f; vy *= f; }
+      VX[i] = vx; VY[i] = vy;
+    }
+
+    // Viskosität (XSPH): Nachbarn gleichen ihre Geschwindigkeit leicht an
+    for (let i = 0; i < n; i++) {
+      const xi = X[i], yi = Y[i];
+      const c = cellOf[i], cx = c % cols, cy = (c / cols) | 0;
+      let sx = 0, sy = 0, sw = 0;
+      for (let oy = -1; oy <= 1; oy++) {
+        const yy = cy + oy; if (yy < 0 || yy >= rows) continue;
+        for (let ox = -1; ox <= 1; ox++) {
+          const xx = cx + ox; if (xx < 0 || xx >= cols) continue;
+          const cc = yy * cols + xx;
+          for (let k = cellStart[cc], e = cellStart[cc + 1]; k < e; k++) {
+            const j = sorted[k]; if (j === i) continue;
+            const dx = X[j] - xi, dy = Y[j] - yi, d2 = dx * dx + dy * dy;
+            if (d2 >= hh) continue;
+            const w = 1 - Math.sqrt(d2) / h;
+            sx += (VX[j] - VX[i]) * w; sy += (VY[j] - VY[i]) * w; sw += w;
+          }
+        }
+      }
+      if (sw > 0) { TX[i] = VX[i] + VISC * sx / sw; TY[i] = VY[i] + VISC * sy / sw; } else { TX[i] = VX[i]; TY[i] = VY[i]; }
+    }
+    for (let i = 0; i < n; i++) { VX[i] = TX[i]; VY[i] = TY[i]; }
+
+    // Übergelaufen: über den oberen Rand hinaus = weg
+    for (let i = n - 1; i >= 0; i--) {
+      if (Y[i] < -1.5 * h || !(Y[i] === Y[i]) || !(X[i] === X[i])) {
+        n--;
+        X[i] = X[n]; Y[i] = Y[n]; PX[i] = PX[n]; PY[i] = PY[n]; VX[i] = VX[n]; VY[i] = VY[n];
+      }
+    }
+  }
+
+  // ---------- Zeichnen ----------
+  function render() {
+    field.fill(0);
+    const rc = Math.ceil(Rk / CELL), R2 = Rk * Rk;
+    const splat = (wx, wy) => {
+      const px = wx / CELL, py = wy / CELL;
+      const cx = px | 0, cy = py | 0;
+      const x0 = Math.max(0, cx - rc), x1 = Math.min(gw - 1, cx + rc);
+      const y0 = Math.max(0, cy - rc), y1 = Math.min(gh - 1, cy + rc);
+      for (let y = y0; y <= y1; y++) {
+        const dy = (y + .5 - py) * CELL, dy2 = dy * dy;
+        if (dy2 >= R2) continue;
+        const row = y * gw;
+        for (let x = x0; x <= x1; x++) {
+          const dx = (x + .5 - px) * CELL;
+          const d2 = dx * dx + dy2;
+          if (d2 < R2) { const w = 1 - d2 / R2; field[row + x] += w * w * w; }
+        }
+      }
+    };
+    for (let i = 0; i < n; i++) {
+      const x = X[i], y = Y[i];
+      splat(x, y);
+      // Spiegelbilder an den Wänden, damit das Wasser bis an den Rand reicht
+      if (y > 0) {
+        if (x < Rk) splat(-x, y);
+        else if (x > W - Rk) splat(2 * W - x, y);
+      }
+      if (y > H - Rk) splat(x, 2 * H - y);
+    }
+
+    const data = img.data;
+    const lo = T * 0.8, hi = T * 1.25, span = F0 - T;
+    for (let y = 0; y < gh; y++) {
+      const depth = y / gh;                 // oben hell, unten tief
+      const row = y * gw;
+      for (let x = 0; x < gw; x++) {
+        const v = field[row + x];
+        const o = (row + x) * 4;
+        if (v <= lo) { data[o + 3] = 0; continue; }
+        let a = (v - lo) / (hi - lo); if (a > 1) a = 1;
+        a = a * a * (3 - 2 * a);
+        let t = (v - T) / span; if (t < 0) t = 0; else if (t > 1) t = 1;
+        // Rand: hellblau-türkis, Inneres: kräftiges Blau, nach unten tiefer
+        const rim = 1 - Math.min(1, t * 3.2);
+        const r = 26 - 14 * depth + rim * 120;
+        const g = 118 - 46 * depth + rim * 105;
+        const b = 214 - 40 * depth + rim * 38;
+        data[o] = r; data[o + 1] = g; data[o + 2] = b;
+        data[o + 3] = 255 * a * (0.92 + 0.08 * rim);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function updateLevel() {
+    const ml = Math.round((n / nStart) * CAPACITY_ML * FILL);
+    $level.textContent = ml + ' ml';
+  }
+
+  // ---------- Lage ----------
+  let sensorSeen = false, manual = false, manualAngle = 0;
+
+  function screenAngle() {
+    if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+    if (typeof window.orientation === 'number') return window.orientation;
+    return 0;
+  }
+
+  function onOrientation(e) {
+    if (e.beta == null || e.gamma == null) return;
+    sensorSeen = true;
+    if (manual) return;
+    const b = e.beta * Math.PI / 180, g = e.gamma * Math.PI / 180;
+    // Schwerkraft im Gerät (x rechts, y zur Oberkante)
+    const dx = Math.cos(b) * Math.sin(g);
+    const dy = -Math.sin(b);
+    // In Bildschirmkoordinaten drehen, falls der Browser mitgedreht hat
+    const a = screenAngle() * Math.PI / 180;
+    const rx = dx * Math.cos(a) - dy * Math.sin(a);
+    const ry = dx * Math.sin(a) + dy * Math.cos(a);
+    tgX = rx; tgY = -ry;
+  }
+
+  function setManual(angleDeg) {
+    manualAngle = Math.max(-180, Math.min(180, angleDeg));
+    const a = manualAngle * Math.PI / 180;
+    tgX = Math.sin(a); tgY = Math.cos(a);
+  }
+
+  function showToast(text, ms) {
+    $toast.textContent = text; $toast.hidden = false;
+    clearTimeout(showToast.t);
+    if (ms) showToast.t = setTimeout(() => { $toast.hidden = true; }, ms);
+  }
+
+  // Maus / Finger ohne Sensor: ziehen kippt den Becher
+  let drag = null;
+  addEventListener('pointerdown', e => {
+    if (!manual || e.target.closest('button')) return;
+    drag = { x: e.clientX, a: manualAngle };
+  });
+  addEventListener('pointermove', e => {
+    if (!drag) return;
+    setManual(drag.a + (e.clientX - drag.x) / W * 200);
+  });
+  addEventListener('pointerup', () => { drag = null; });
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') { manual = true; setManual(manualAngle - 8); }
+    if (e.key === 'ArrowRight') { manual = true; setManual(manualAngle + 8); }
+    if (e.key === 'ArrowUp' || e.key === '0') { setManual(0); }
+  });
+
+  // ---------- Ablauf ----------
+  let running = false, last = 0, acc = 0, levelTick = 0;
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (!last) last = t;
+    acc += Math.min(50, t - last); last = t;
+    let steps = 0;
+    while (acc >= 1000 / 60 && steps < 3) {
+      // weich nachführen, damit Sensorrauschen das Wasser nicht zittern lässt
+      gX += (tgX - gX) * 0.25; gY += (tgY - gY) * 0.25;
+      if (running) for (let k = 0; k < SUBSTEPS; k++) step();
+      acc -= 1000 / 60; steps++;
+    }
+    if (steps) render();
+    if (++levelTick % 10 === 0) updateLevel();
+  }
+
+  document.getElementById('start').addEventListener('click', async () => {
+    const DOE = window.DeviceOrientationEvent;
+    try {
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        const res = await DOE.requestPermission();
+        if (res !== 'granted') showToast('Ohne Zugriff auf den Lagesensor geht es nur per Wischen: zieh mit dem Finger nach links oder rechts.', 6000);
+      }
+    } catch (err) { /* ältere Browser */ }
+    addEventListener('deviceorientation', onOrientation);
+
+    // Android: Vollbild und Hochformat festhalten
+    if (matchMedia('(pointer: coarse)').matches && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen({ navigationUI: 'hide' })
+        .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait'))
+        .catch(() => {});
+    }
+
+    document.getElementById('intro').hidden = true;
+    document.getElementById('hud').hidden = false;
+    running = true;
+
+    setTimeout(() => {
+      if (!sensorSeen) {
+        manual = true; setManual(0);
+        showToast('Kein Lagesensor gefunden. Zieh mit Maus oder Finger nach links oder rechts, oder nutze die Pfeiltasten.', 7000);
+      }
+    }, 1200);
+  });
+
+  document.getElementById('refill').addEventListener('click', () => {
+    fill();
+    if (manual) setManual(0);
+  });
+
+  let lastAngle = screenAngle();
+  addEventListener('resize', () => {
+    setup(true);
+    const a = screenAngle();
+    if (running && a !== lastAngle && !manual) {
+      showToast('Die Seite hat sich mitgedreht. Sperr die Bildschirmdrehung, dann läuft das Wasser raus.', 6000);
+    }
+    lastAngle = a;
+  });
+
+  // Testzugang für automatische Prüfung
+  window.__becher = { get n() { return n; }, get nStart() { return nStart; }, setManual: a => { manual = true; setManual(a); }, X, Y };
+
+  setup(false);
+  render();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
