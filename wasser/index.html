@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#e2eaf0">
 <title>Messbecher</title>
-<meta name="description" content="Das ganze Display ist voll Wasser. Kipp das Handy, dann läuft es über den Rand.">
+<meta name="description" content="Das ganze Display ist voll Flüssigkeit. Kipp das Handy, dann läuft sie über den Rand.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -75,11 +75,29 @@
   .intro .hint { font-size: 14px; }
   .intro button { justify-self: start; padding: 12px 24px; font-size: 17px; background: var(--accent); }
 
+  .liquids {
+    position: fixed; z-index: 2; left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 4px;
+    touch-action: pan-x;
+  }
+  .liquids::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px 8px 10px; font-size: 15px;
+    background: var(--card); color: var(--ink);
+    box-shadow: 0 2px 10px rgba(6, 30, 70, .15);
+  }
+  .chip[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .swatch { width: 16px; height: 16px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.6); }
   .toast {
     position: fixed; z-index: 3;
     left: max(16px, env(safe-area-inset-left, 0px));
     right: max(16px, env(safe-area-inset-right, 0px));
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
     margin: 0 auto; max-width: 420px;
     background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
     font-size: 15px;
@@ -95,10 +113,12 @@
   <button type="button" id="refill">Nachfüllen</button>
 </div>
 
+<div class="liquids" id="liquids" hidden role="group" aria-label="Flüssigkeit wählen"></div>
+
 <div class="intro" id="intro">
   <h1>Messbecher</h1>
-  <p>Dein Display ist bis oben voll Wasser. Halte das Handy aufrecht und kipp es zur Seite, dann läuft es über den Rand.</p>
-  <p class="hint">Sperr vorher die Bildschirmdrehung, sonst dreht sich die Seite mit und das Wasser bleibt drin.</p>
+  <p>Dein Display ist bis oben voll. Halte das Handy aufrecht und kipp es zur Seite, dann läuft alles über den Rand. Unten wählst du die Flüssigkeit: Wasser, Honig, Milch, Lava, Schleim oder eine Mischung in Schichten.</p>
+  <p class="hint">Sperr vorher die Bildschirmdrehung, sonst dreht sich die Seite mit und die Flüssigkeit bleibt drin.</p>
   <button type="button" id="start">Starten</button>
 </div>
 
@@ -120,6 +140,35 @@
   const MAX = 4000;
   const SUBSTEPS = 3;
 
+  // Sorten: Farbe innen / Farbe am Rand, Gewicht (Schichten), Deckkraft
+  const KINDS = {
+    wasser:    { deep: [26, 118, 214], rim: [146, 223, 252], mass: 1.0, alpha: 0.95 },
+    honig:     { deep: [190, 112, 8],  rim: [255, 208, 92],  mass: 1.0, alpha: 0.97 },
+    milch:     { deep: [250, 248, 241], rim: [205, 214, 224], mass: 1.0, alpha: 1.0 },
+    lava:      { deep: [96, 16, 8],    rim: [232, 74, 16],   mass: 1.0, alpha: 1.0 },
+    glut:      { deep: [255, 128, 20], rim: [255, 226, 110], mass: 1.0, alpha: 1.0 },
+    schleim:   { deep: [62, 160, 36],  rim: [196, 250, 96],  mass: 1.0, alpha: 0.96 },
+    oel:       { deep: [214, 168, 28], rim: [252, 228, 128], mass: 0.5, alpha: 0.9 },
+    grenadine: { deep: [168, 10, 42],  rim: [240, 86, 112],  mass: 1.7, alpha: 0.97 },
+    saft:      { deep: [244, 132, 18], rim: [255, 200, 110], mass: 1.15, alpha: 0.97 },
+    zitrone:   { deep: [238, 206, 46], rim: [255, 242, 150], mass: 0.65, alpha: 0.95 },
+  };
+  const KIND_IDS = Object.keys(KINDS);
+  // Mischungen: Schichten von unten nach oben, Anteil der Füllhöhe
+  const LIQUIDS = [
+    { id: 'wasser',  name: 'Wasser',  layers: [['wasser', 1]], visc: 0.12, damp: 0.99, coh: 1, shade: 0.22 },
+    { id: 'honig',   name: 'Honig',   layers: [['honig', 1]], visc: 0.85, damp: 0.9, coh: 1.6, shade: 0.25 },
+    { id: 'milch',   name: 'Milch',   layers: [['milch', 1]], visc: 0.18, damp: 0.99, coh: 1, shade: 0.06 },
+    { id: 'lava',    name: 'Lava',    layers: [['lava', 1]], veins: 'glut', visc: 0.7, damp: 0.93, coh: 1.3, shade: 0 },
+    { id: 'schleim', name: 'Schleim', layers: [['schleim', 1]], visc: 0.6, damp: 0.96, coh: 3.5, shade: 0.25 },
+    { id: 'oelwasser', name: 'Öl + Wasser', layers: [['wasser', 0.6], ['oel', 0.4]], visc: 0.14, damp: 0.99, coh: 1, shade: 0.2 },
+    { id: 'cocktail', name: 'Cocktail', layers: [['grenadine', 0.3], ['saft', 0.4], ['zitrone', 0.3]], visc: 0.16, damp: 0.99, coh: 1, shade: 0.15 },
+  ];
+  let liquid = LIQUIDS[0];
+  let VISC = liquid.visc, COH = liquid.coh;
+  const KMASS = new Float32Array(KIND_IDS.length);
+  KIND_IDS.forEach((k, i) => { KMASS[i] = KINDS[k].mass; });
+
   let W = 0, H = 0;
   let s = 10, h = 22, rho0 = 1, F0 = 1, T = 1, Rk = 16;
   const K = 0.12, KN = 0.25;   // Steifigkeit (Druck / Nahdruck)
@@ -129,7 +178,7 @@
   const PX = new Float32Array(MAX), PY = new Float32Array(MAX);
   const VX = new Float32Array(MAX), VY = new Float32Array(MAX);
   const TX = new Float32Array(MAX), TY = new Float32Array(MAX);
-  const VISC = 0.12;
+  const TYPE = new Uint8Array(MAX);
   let n = 0, nStart = 1;
 
   // Schwerkraft in Bildschirmkoordinaten (y nach unten), Länge 0..1
@@ -141,7 +190,9 @@
   const nbJ = new Int32Array(512), nbQ = new Float32Array(512), nbUX = new Float32Array(512), nbUY = new Float32Array(512);
 
   // ---------- Bild ----------
-  let gw = 0, gh = 0, field, img;
+  let gw = 0, gh = 0, field, img, cDR, cDG, cDB, cRR, cRG, cRB, cA;
+  // Farbtabellen je Sorte (linear vorbereitet)
+  const KD = KIND_IDS.map(k => KINDS[k].deep), KR = KIND_IDS.map(k => KINDS[k].rim), KA = KIND_IDS.map(k => KINDS[k].alpha);
 
   function latticeSum(spacing, radius, fn) {
     // Summe über ein Sechseck-Gitter um einen inneren Punkt
@@ -187,6 +238,9 @@
     gw = Math.ceil(W / CELL); gh = Math.ceil(H / CELL);
     sim.width = gw; sim.height = gh;
     field = new Float32Array(gw * gh);
+    cDR = new Float32Array(gw * gh); cDG = new Float32Array(gw * gh); cDB = new Float32Array(gw * gh);
+    cRR = new Float32Array(gw * gh); cRG = new Float32Array(gw * gh); cRB = new Float32Array(gw * gh);
+    cA = new Float32Array(gw * gh);
     img = ctx.createImageData(gw, gh);
 
     const dpr = Math.min(devicePixelRatio || 1, 2);
@@ -203,11 +257,25 @@
     const dy = s * Math.sqrt(3) / 2;
     const top = H * (1 - FILL);
     let row = 0;
+    const layerTypes = liquid.layers.map(([k]) => KIND_IDS.indexOf(k));
+    const veinType = liquid.veins ? KIND_IDS.indexOf(liquid.veins) : -1;
+    const vSeed = Math.random() * 10;
+    const bounds = [];
+    let accH = 0;
+    for (const [, f] of liquid.layers) { accH += f; bounds.push(H - (H - top) * accH); }
     for (let y = H - r; y > top && n < MAX; y -= dy, row++) {
+      let li = 0; while (li < bounds.length - 1 && y < bounds[li]) li++;
       for (let x = r + ((row & 1) ? s / 2 : 0); x < W - r && n < MAX; x += s) {
         X[n] = PX[n] = x + (Math.random() - .5) * 0.02 * s;
         Y[n] = PY[n] = y;
         VX[n] = VY[n] = 0;
+        TYPE[n] = layerTypes[li];
+        if (veinType >= 0) {
+          // Glutadern: schmale Bänder aus einem weichen Wellenmuster, die mit der Lava mitfließen
+          const u = x / W * 6.3 + vSeed, w = y / H * 9.1 - vSeed * 0.7;
+          const f = Math.sin(u * 1.7 + Math.sin(w * 1.3) * 1.8) + Math.sin(w * 1.1 - u * 0.6 + Math.cos(u * 0.9) * 1.5);
+          if (Math.abs(f) < 0.22) TYPE[n] = veinType;
+        }
         n++;
       }
     }
@@ -218,7 +286,7 @@
     for (let k = 0; k < 160; k++) step();
     damp = 0.97;
     for (let k = 0; k < 80; k++) step();
-    damp = 0.99; gX = sx; gY = sy;
+    damp = liquid.damp; gX = sx; gY = sy;
     for (let i = 0; i < n; i++) { VX[i] = VY[i] = 0; PX[i] = X[i]; PY[i] = Y[i]; }
     updateLevel();
   }
@@ -258,14 +326,15 @@
     for (let i = 0; i < n; i++) sorted[cellCount[cellOf[i]]++] = i;
   }
 
-  let damp = 0.99;
+  let damp = liquid.damp;
   function step() {
     const r = s * 0.5;
     const vmax = h * 0.45;
     const gx = gX * G, gy = gY * G;
 
     for (let i = 0; i < n; i++) {
-      VX[i] += gx; VY[i] += gy;
+      const m = KMASS[TYPE[i]];
+      VX[i] += gx * m; VY[i] += gy * m;
       PX[i] = X[i]; PY[i] = Y[i];
       X[i] += VX[i]; Y[i] += VY[i];
     }
@@ -292,7 +361,7 @@
           }
         }
       }
-      const P = K * (rho - rho0), PN = KN * rhoN;
+      const P = rho > rho0 ? K * (rho - rho0) : K * COH * (rho - rho0), PN = KN * rhoN;
       let ax = 0, ay = 0;
       for (let t = 0; t < m; t++) {
         const q = nbQ[t];
@@ -343,7 +412,7 @@
     for (let i = n - 1; i >= 0; i--) {
       if (Y[i] < -1.5 * h || !(Y[i] === Y[i]) || !(X[i] === X[i])) {
         n--;
-        X[i] = X[n]; Y[i] = Y[n]; PX[i] = PX[n]; PY[i] = PY[n]; VX[i] = VX[n]; VY[i] = VY[n];
+        X[i] = X[n]; Y[i] = Y[n]; PX[i] = PX[n]; PY[i] = PY[n]; VX[i] = VX[n]; VY[i] = VY[n]; TYPE[i] = TYPE[n];
       }
     }
   }
@@ -351,7 +420,10 @@
   // ---------- Zeichnen ----------
   function render() {
     field.fill(0);
+    const mixed = liquid.layers.length > 1 || !!liquid.veins;
+    if (mixed) { cDR.fill(0); cDG.fill(0); cDB.fill(0); cRR.fill(0); cRG.fill(0); cRB.fill(0); cA.fill(0); }
     const rc = Math.ceil(Rk / CELL), R2 = Rk * Rk;
+    let sd, sr, sa;
     const splat = (wx, wy) => {
       const px = wx / CELL, py = wy / CELL;
       const cx = px | 0, cy = py | 0;
@@ -364,12 +436,22 @@
         for (let x = x0; x <= x1; x++) {
           const dx = (x + .5 - px) * CELL;
           const d2 = dx * dx + dy2;
-          if (d2 < R2) { const w = 1 - d2 / R2; field[row + x] += w * w * w; }
+          if (d2 < R2) {
+            let w = 1 - d2 / R2; w = w * w * w;
+            const o = row + x;
+            field[o] += w;
+            if (mixed) {
+              cDR[o] += w * sd[0]; cDG[o] += w * sd[1]; cDB[o] += w * sd[2];
+              cRR[o] += w * sr[0]; cRG[o] += w * sr[1]; cRB[o] += w * sr[2];
+              cA[o] += w * sa;
+            }
+          }
         }
       }
     };
     for (let i = 0; i < n; i++) {
       const x = X[i], y = Y[i];
+      const ty = TYPE[i]; sd = KD[ty]; sr = KR[ty]; sa = KA[ty];
       splat(x, y);
       // Spiegelbilder an den Wänden, damit das Wasser bis an den Rand reicht
       if (y > 0) {
@@ -381,23 +463,32 @@
 
     const data = img.data;
     const lo = T * 0.8, hi = T * 1.25, span = F0 - T;
+    const shade = liquid.shade;
+    const t0 = KIND_IDS.indexOf(liquid.layers[0][0]);
+    let dR = KD[t0][0], dG = KD[t0][1], dB = KD[t0][2], rR = KR[t0][0], rG = KR[t0][1], rB = KR[t0][2], al = KA[t0];
     for (let y = 0; y < gh; y++) {
       const depth = y / gh;                 // oben hell, unten tief
+      const dark = 1 - shade * depth;
       const row = y * gw;
       for (let x = 0; x < gw; x++) {
-        const v = field[row + x];
-        const o = (row + x) * 4;
+        const c = row + x;
+        const v = field[c];
+        const o = c * 4;
         if (v <= lo) { data[o + 3] = 0; continue; }
+        if (mixed) {
+          const iv = 1 / v;
+          dR = cDR[c] * iv; dG = cDG[c] * iv; dB = cDB[c] * iv;
+          rR = cRR[c] * iv; rG = cRG[c] * iv; rB = cRB[c] * iv; al = cA[c] * iv;
+        }
         let a = (v - lo) / (hi - lo); if (a > 1) a = 1;
         a = a * a * (3 - 2 * a);
         let t = (v - T) / span; if (t < 0) t = 0; else if (t > 1) t = 1;
-        // Rand: hellblau-türkis, Inneres: kräftiges Blau, nach unten tiefer
         const rim = 1 - Math.min(1, t * 3.2);
-        const r = 26 - 14 * depth + rim * 120;
-        const g = 118 - 46 * depth + rim * 105;
-        const b = 214 - 40 * depth + rim * 38;
-        data[o] = r; data[o + 1] = g; data[o + 2] = b;
-        data[o + 3] = 255 * a * (0.92 + 0.08 * rim);
+        const k = 1 - rim;
+        data[o] = (dR * k + rR * rim) * dark;
+        data[o + 1] = (dG * k + rG * rim) * dark;
+        data[o + 2] = (dB * k + rB * rim) * dark;
+        data[o + 3] = 255 * a * (al + (1 - al) * rim);
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -497,6 +588,7 @@
 
     document.getElementById('intro').hidden = true;
     document.getElementById('hud').hidden = false;
+    $liquids.hidden = false;
     running = true;
 
     setTimeout(() => {
@@ -506,6 +598,26 @@
       }
     }, 1200);
   });
+
+  const $liquids = document.getElementById('liquids');
+  const rgb = c => 'rgb(' + c.join(',') + ')';
+  for (const L of LIQUIDS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.id = 'liq-' + L.id;
+    b.setAttribute('aria-pressed', L === liquid ? 'true' : 'false');
+    const stops = L.layers.slice().reverse().map(([k]) => rgb(KINDS[k].deep));
+    const sw = document.createElement('span'); sw.className = 'swatch';
+    sw.style.background = stops.length > 1 ? 'linear-gradient(' + stops.join(',') + ')' : stops[0];
+    b.append(sw, L.name);
+    b.addEventListener('click', () => choose(L));
+    $liquids.append(b);
+  }
+  function choose(L) {
+    liquid = L; VISC = L.visc; COH = L.coh; damp = L.damp;
+    for (const b of $liquids.children) b.setAttribute('aria-pressed', b.id === 'liq-' + L.id ? 'true' : 'false');
+    fill();
+    if (manual) setManual(0);
+  }
 
   document.getElementById('refill').addEventListener('click', () => {
     fill();
@@ -517,13 +629,13 @@
     setup(true);
     const a = screenAngle();
     if (running && a !== lastAngle && !manual) {
-      showToast('Die Seite hat sich mitgedreht. Sperr die Bildschirmdrehung, dann läuft das Wasser raus.', 6000);
+      showToast('Die Seite hat sich mitgedreht. Sperr die Bildschirmdrehung, dann läuft die Flüssigkeit raus.', 6000);
     }
     lastAngle = a;
   });
 
   // Testzugang für automatische Prüfung
-  window.__becher = { get n() { return n; }, get nStart() { return nStart; }, setManual: a => { manual = true; setManual(a); }, X, Y };
+  window.__becher = { get n() { return n; }, get nStart() { return nStart; }, setManual: a => { manual = true; setManual(a); }, choose: id => choose(LIQUIDS.find(L => L.id === id)), X, Y, TYPE };
 
   setup(false);
   render();
