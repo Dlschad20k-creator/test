@@ -153,7 +153,74 @@
         params: p,
       };
     }
-    return { run, N, E };
+    // Fortlaufende Simulation fuer die Fliegenwelt: Zustand bleibt zwischen den Aufrufen erhalten,
+    // die Sinnes-Eingaenge koennen sich jederzeit aendern.
+    function live(params) {
+      const p = Object.assign({}, DEFAULTS, params);
+      buildWeights(p);
+      const D = Math.max(1, Math.round(p.delay / p.dt));
+      const R = Math.max(1, Math.round(p.refractory / p.dt));
+      const decS = Math.exp(-p.dt / p.tauS);
+      const kM = p.dt / p.tauM;
+      const wPoi = p.fPoi * p.wSyn;
+      const v0 = p.v0, vTh = p.vTh, vReset = p.vReset;
+      const v = new Float32Array(N).fill(v0), g = new Float32Array(N), refr = new Uint16Array(N);
+      const awake = new Uint8Array(N), silent = new Uint8Array(N);
+      let list = new Uint32Array(N), next = new Uint32Array(N), nList = 0;
+      const ring = []; for (let k = 0; k < D; k++) ring.push([]);
+      const rand = rng(p.seed);
+      let inIdx = new Uint32Array(0), inP = new Float32Array(0);
+      let t = 0;
+
+      function setInput(idx, ratesHz) {
+        inIdx = Uint32Array.from(idx);
+        inP = Float32Array.from(ratesHz, (r) => Math.max(0, r) * p.dt / 1000);
+      }
+      function setSilent(idx) { silent.fill(0); for (const i of idx) silent[i] = 1; }
+      function reset() {
+        v.fill(v0); g.fill(0); refr.fill(0); awake.fill(0); nList = 0;
+        for (const r of ring) r.length = 0;
+      }
+      // simuliert 'ms' Millisekunden, gibt die Indizes aller Spikes zurueck (mit Wiederholungen)
+      function step(ms) {
+        const steps = Math.round(ms / p.dt);
+        const spikes = [];
+        for (let s = 0; s < steps; s++, t++) {
+          const arr = ring[t % D];
+          for (let k = 0; k < arr.length; k++) {
+            const i = arr[k];
+            for (let e = offsets[i], end = offsets[i + 1]; e < end; e++) {
+              const j = post[e];
+              g[j] += W[e];
+              if (!awake[j]) { awake[j] = 1; list[nList++] = j; }
+            }
+          }
+          arr.length = 0;
+          for (let k = 0; k < inIdx.length; k++) {
+            if (rand() < inP[k]) { const j = inIdx[k]; g[j] += wPoi; if (!awake[j]) { awake[j] = 1; list[nList++] = j; } }
+          }
+          const out = ring[t % D];
+          let nNext = 0;
+          for (let k = 0; k < nList; k++) {
+            const i = list[k];
+            let gi = g[i], vi = v[i];
+            if (refr[i] > 0) refr[i]--;
+            else {
+              vi = vi + (v0 - vi + gi) * kM;
+              if (vi > vTh && !silent[i]) { vi = vReset; refr[i] = R; out.push(i); spikes.push(i); }
+            }
+            gi *= decS;
+            if (refr[i] === 0 && Math.abs(vi - v0) < 1e-4 && Math.abs(gi) < 1e-4) { v[i] = v0; g[i] = 0; awake[i] = 0; }
+            else { v[i] = vi; g[i] = gi; next[nNext++] = i; }
+          }
+          const tmp = list; list = next; next = tmp; nList = nNext;
+        }
+        return Uint32Array.from(spikes);
+      }
+      return { setInput, setSilent, reset, step, get awakeCount() { return nList; } };
+    }
+
+    return { run, live, N, E };
   }
 
   root.FlyBrainSim = { makeEngine, DEFAULTS };
@@ -169,6 +236,17 @@
           syn: new Uint16Array(m.syn), ntCode: new Uint8Array(m.ntCode),
         });
         self.postMessage({ type: "ready" });
+      } else if (m.cmd === "live-start") {
+        self.liveSim = engine.live(m.params || {});
+        self.postMessage({ type: "live-ready" });
+      } else if (m.cmd === "live-step") {
+        const L = self.liveSim;
+        if (m.input) L.setInput(m.input.idx, m.input.rates);
+        if (m.silence) L.setSilent(m.silence);
+        if (m.reset) L.reset();
+        const t0 = Date.now();
+        const spikes = L.step(m.ms);
+        self.postMessage({ type: "live-spikes", seq: m.seq, spikes, ms: m.ms, cpu: Date.now() - t0, awake: L.awakeCount }, [spikes.buffer]);
       } else if (m.cmd === "run") {
         try {
           let last = 0;

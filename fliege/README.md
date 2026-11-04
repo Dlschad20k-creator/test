@@ -22,6 +22,24 @@ python3 -m http.server      # im Repo-Ordner
 - Ergebnisse: aktivste Neuronen und Zelltypen, Spike-Raster, Abspielen im 3D-Gehirn, CSV-Export,
   Vergleich mit dem vorigen Lauf (Δ-Spalte), Speichern und Teilen per Link.
 
+## Fliegenwelt (`welt.html`)
+
+Die Fliege bekommt einen Körper und lebt in einer kleinen Arena (8 × 5 cm). Alle 20 ms
+Hirnzeit werden ihre Sinne ins Gehirn gespeist und die Antworten in Bewegung übersetzt:
+
+| Sinn → Gehirn | Gehirn → Körper |
+| --- | --- |
+| Zucker unter dem Kopf → 23 Zucker-Geschmacksneuronen (stärker bei Hunger) | MN9 → Rüssel raus, fressen |
+| Bitteres → Bitter-Geschmacksneuronen | (hemmt MN9 im Netz) |
+| Nahende Hand → LC4 des linken/rechten Auges | Riesenfaser DNp01 → Absprung; DNp02/04/11 → wegdrehen |
+
+Laufen und Riechen sind vereinfachte Körper-Regeln. Düfte lassen sich als Experiment ins echte
+Gehirn schicken; im Modell löst das eine Dauererregung von ~8.000 Neuronen aus (ein Limit des
+vereinfachten Modells, kein echtes Fliegenverhalten).
+
+Experimente: Mutanten durch Stummschalten (Roundup, Bitter-Neuronen, Riesenfaser, LC4, MN9 …
+oder jeder andere Zelltyp per Suche), Hunger einstellen, Futter und Blumen platzieren.
+
 ## Das Modell
 
 Leaky Integrate-and-Fire, Parameter wie in Shiu et al. 2024 (*Nature*,
