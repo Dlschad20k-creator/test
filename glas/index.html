@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0c0f14">
+<title>Handglas</title>
+<meta name="description" content="Flüssiges Glas zwischen deinen Fingern: per Kamera-Handerkennung oder per Touch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+  /* Layout: Vollbild-Bühne (Kamera oder Musterbild), darüber schwebende Glas-Bedienelemente */
+  :root {
+    --bg: #0c0f14;
+    --ink: #f4f6fa;
+    --muted: rgba(244, 246, 250, .72);
+    --glass: rgba(255, 255, 255, .14);
+    --glass-line: rgba(255, 255, 255, .32);
+    --accent: #9fd8ff;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+    overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  canvas#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  video { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  .glass-ui {
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 30px rgba(0,0,0,.25);
+  }
+
+  .bar {
+    position: fixed; z-index: 2;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .status {
+    padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; color: var(--ink);
+    border-radius: 999px; padding: 8px 16px;
+  }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  button:active { transform: scale(.97); }
+
+  .intro {
+    position: fixed; z-index: 3;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    margin: 0 auto; max-width: 440px;
+    border-radius: 26px; padding: 24px 22px 22px;
+    display: grid; gap: 12px;
+  }
+  .intro h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 800;
+    font-size: 38px; line-height: 1; letter-spacing: -.02em;
+  }
+  .intro p { margin: 0; color: var(--muted); }
+  .intro ul { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 4px; font-size: 15px; }
+  .intro strong { color: var(--ink); font-weight: 600; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .primary { background: var(--ink); color: #0c0f14; border: none; padding: 12px 22px; font-size: 17px; }
+  .secondary { padding: 12px 20px; font-size: 17px; }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="Kamerabild mit flüssigem Glas"></canvas>
+<video id="cam" playsinline muted></video>
+
+<div class="bar" id="bar" hidden>
+  <span class="status glass-ui" id="status" role="status">Lade …</span>
+  <button type="button" class="glass-ui" id="switch">Touch</button>
+</div>
+
+<div class="intro glass-ui" id="intro">
+  <h1>Handglas</h1>
+  <p>Flüssiges Glas, das sich zwischen deinen Fingern bildet.</p>
+  <ul>
+    <li><strong>Beide Zeigefinger</strong> zeigen: Das Glas spannt sich dazwischen. Weiter auseinander wird es dünner und reißt.</li>
+    <li><strong>Daumen und Zeigefinger</strong> beider Hände wie ein Rahmen: Es wird eine Glasscheibe.</li>
+    <li>Ohne Kamera: <strong>zwei bis vier Finger</strong> aufs Display legen.</li>
+  </ul>
+  <div class="actions">
+    <button type="button" class="primary" id="startCam">Kamera starten</button>
+    <button type="button" class="secondary glass-ui" id="startTouch">Nur Touch</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('stage');
+  const gl = cv.getContext('webgl', { premultipliedAlpha: false, antialias: false });
+  const video = document.getElementById('cam');
+  const $status = document.getElementById('status');
+  const $switch = document.getElementById('switch');
+
+  // ---------- WebGL ----------
+  const VS = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+  const FS = `
+precision highp float;
+uniform sampler2D uTex;
+uniform vec2 uRes;          // Gerätepixel
+uniform vec2 uCover;        // Ausschnitt-Faktor (object-fit: cover)
+uniform float uMirror;      // 1 = spiegeln (Frontkamera)
+uniform float uDpr;
+uniform vec2 uA, uB;        // Fingerspitzen
+uniform float uRA, uRB;     // Tropfenradien
+uniform float uRBr;         // Brückenradius (0 = gerissen)
+uniform vec2 uQ0, uQ1, uQ2, uQ3;
+uniform float uQuad;        // 1 = Scheibe aktiv
+uniform float uK;           // Verschmelzung
+uniform float uTime;
+
+vec2 toUV(vec2 px) {
+  vec2 s = px / uRes;
+  vec2 uv = 0.5 + (s - 0.5) * uCover;
+  if (uMirror > 0.5) uv.x = 1.0 - uv.x;
+  return clamp(uv, 0.001, 0.999);
+}
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+float sdCapsule(vec2 p, vec2 a, vec2 b, float r) {
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+  return length(pa - ba * h) - r;
+}
+float sdSeg(vec2 p, vec2 a, vec2 b) {
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+float crossSign(vec2 p, vec2 a, vec2 b) {
+  vec2 e = b - a, w = p - a;
+  return e.x * w.y - e.y * w.x;
+}
+float sdQuad(vec2 p) {
+  float d = min(min(sdSeg(p, uQ0, uQ1), sdSeg(p, uQ1, uQ2)), min(sdSeg(p, uQ2, uQ3), sdSeg(p, uQ3, uQ0)));
+  float s0 = crossSign(p, uQ0, uQ1), s1 = crossSign(p, uQ1, uQ2), s2 = crossSign(p, uQ2, uQ3), s3 = crossSign(p, uQ3, uQ0);
+  bool inside = (s0 >= 0.0 && s1 >= 0.0 && s2 >= 0.0 && s3 >= 0.0) || (s0 <= 0.0 && s1 <= 0.0 && s2 <= 0.0 && s3 <= 0.0);
+  return inside ? -d : d;
+}
+float scene(vec2 p) {
+  float d = 1e5;
+  if (uRA > 0.5) d = length(p - uA) - uRA;
+  if (uRB > 0.5) d = smin(d, length(p - uB) - uRB, uK);
+  if (uRBr > 0.5) d = smin(d, sdCapsule(p, uA, uB, uRBr), uK);
+  if (uQuad > 0.5) d = smin(d, sdQuad(p) - 18.0 * uDpr, uK);
+  return d;
+}
+
+void main() {
+  vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  vec3 bg = texture2D(uTex, toUV(px)).rgb;
+
+  float d = scene(px);
+  // Weicher Schatten unter dem Glas
+  float sh = scene(px - vec2(0.0, 14.0 * uDpr));
+  float shadow = (1.0 - smoothstep(0.0, 46.0 * uDpr, sh)) * 0.32;
+  vec3 col = bg * (1.0 - shadow);
+
+  if (d < 2.0) {
+    float e = 1.5;
+    vec2 g = vec2(scene(px + vec2(e, 0.0)) - scene(px - vec2(e, 0.0)),
+                  scene(px + vec2(0.0, e)) - scene(px - vec2(0.0, e)));
+    vec2 n = length(g) > 1e-5 ? normalize(g) : vec2(0.0);   // zeigt nach außen
+    float bevel = 34.0 * uDpr;
+    float t = clamp(-d / bevel, 0.0, 1.0);                    // 0 am Rand, 1 innen
+    float edge = 1.0 - t;
+    float slope = edge * edge;
+
+    // Lichtbrechung: am Rand stark nach innen gezogen, innen leichte Lupe
+    vec2 c = 0.5 * (uA + uB);
+    vec2 refr = px - n * slope * 46.0 * uDpr + (c - px) * 0.06;
+
+    // Unschärfe: Scheibe aus 16 Abtastpunkten
+    vec3 acc = vec3(0.0);
+    float rad = 11.0 * uDpr;
+    for (int i = 0; i < 16; i++) {
+      float fi = float(i);
+      float a = fi * 2.39996;
+      float r = rad * sqrt((fi + 0.5) / 16.0);
+      // leichte chromatische Aufspaltung am Rand
+      vec2 o = vec2(cos(a), sin(a)) * r;
+      vec2 ca = n * slope * 3.0 * uDpr;
+      acc.r += texture2D(uTex, toUV(refr + o + ca)).r;
+      acc.g += texture2D(uTex, toUV(refr + o)).g;
+      acc.b += texture2D(uTex, toUV(refr + o - ca)).b;
+    }
+    vec3 glass = acc / 16.0;
+    // Sättigung und Aufhellung wie bei Milchglas
+    float lum = dot(glass, vec3(0.299, 0.587, 0.114));
+    glass = mix(vec3(lum), glass, 1.35);
+    glass = glass * 1.04 + 0.05;
+    glass = mix(glass, vec3(1.0), 0.07);
+
+    // Licht von oben links, Glanzkante und dunklere Gegenkante
+    vec2 L = normalize(vec2(-0.6, -0.8));
+    float spec = pow(max(dot(n, L), 0.0), 2.0) * smoothstep(0.55, 0.0, t);
+    float back = pow(max(dot(n, -L), 0.0), 2.0) * smoothstep(0.4, 0.0, t);
+    float rim = 1.0 - smoothstep(0.0, 2.5 * uDpr, -d);
+    glass += vec3(1.0) * (spec * 0.55 + rim * 0.35);
+    glass += vec3(0.75, 0.9, 1.0) * back * 0.18;
+    // feiner Schimmer, der langsam über die Fläche wandert
+    float sheen = smoothstep(0.985, 1.0, sin((px.x + px.y) / (90.0 * uDpr) - uTime * 0.8)) * 0.08 * t;
+    glass += sheen;
+
+    float alpha = 1.0 - smoothstep(-1.0, 1.0, d);
+    col = mix(col, clamp(glass, 0.0, 1.0), alpha);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = {};
+  for (const name of ['uTex', 'uRes', 'uCover', 'uMirror', 'uDpr', 'uA', 'uB', 'uRA', 'uRB', 'uRBr', 'uQ0', 'uQ1', 'uQ2', 'uQ3', 'uQuad', 'uK', 'uTime'])
+    U[name] = gl.getUniformLocation(prog, name);
+
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  // ---------- Bühne ohne Kamera: farbiges Musterbild ----------
+  const pattern = document.createElement('canvas');
+  function drawPattern() {
+    const w = pattern.width = 1080, h = pattern.height = 1920;
+    const c = pattern.getContext('2d');
+    const g = c.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#1b2a6b'); g.addColorStop(0.45, '#7a2c8f'); g.addColorStop(1, '#e0683a');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    const cols = ['#ffd166', '#06d6a0', '#4cc9f0', '#f72585', '#ffffff'];
+    let k = 0;
+    for (let y = 80; y < h; y += 170) for (let x = 60 + ((y / 170) % 2) * 85; x < w; x += 170) {
+      c.fillStyle = cols[k++ % cols.length]; c.globalAlpha = 0.85;
+      c.beginPath(); c.arc(x, y, 34, 0, Math.PI * 2); c.fill();
+    }
+    c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 3;
+    for (let x = 0; x < w; x += 90) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+    c.fillStyle = '#fff';
+    c.font = '800 190px "Bricolage Grotesque", system-ui, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('Liquid', w / 2, h * 0.42);
+    c.fillText('Glass', w / 2, h * 0.42 + 190);
+  }
+
+  // ---------- Größe ----------
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    gl.viewport(0, 0, cv.width, cv.height);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---------- Quelle ----------
+  let source = 'pattern';        // 'pattern' | 'camera'
+  let srcW = 1080, srcH = 1920, mirror = 0;
+  function cover() {
+    const va = srcW / srcH, sa = W / H;
+    return [Math.min(1, sa / va), Math.min(1, va / sa)];
+  }
+  // Videokoordinate (0..1, ungespiegelt) -> Bildschirm-CSS-px
+  function camToScreen(x, y) {
+    const [sx, sy] = cover();
+    const u = 1 - x;
+    return [(0.5 + (u - 0.5) / sx) * W, (0.5 + (y - 0.5) / sy) * H];
+  }
+
+  // ---------- Form-Zustand mit Federn (für das Flüssige) ----------
+  const spring = (v) => ({ v, t: v, vel: 0 });
+  const st = {
+    ax: spring(W * .35), ay: spring(H * .5), bx: spring(W * .65), by: spring(H * .5),
+    ra: spring(0), rb: spring(0), br: spring(0),
+    q: [0, 1, 2, 3].map(() => ({ x: spring(W / 2), y: spring(H / 2) })),
+    quad: spring(0),
+  };
+  let broken = false;
+  function stepSpring(s, k, d) { s.vel += (s.t - s.v) * k; s.vel *= d; s.v += s.vel; }
+
+  // Ziel aus Punkten bestimmen. pts: [{x,y}], quad: 4 Punkte oder null
+  function setTargets(pts, quad) {
+    const base = Math.min(W, H) * 0.09;
+    if (quad) {
+      for (let i = 0; i < 4; i++) { st.q[i].x.t = quad[i].x; st.q[i].y.t = quad[i].y; }
+      if (st.quad.v < 0.05) for (let i = 0; i < 4; i++) { st.q[i].x.v = quad[i].x; st.q[i].y.v = quad[i].y; }
+      st.quad.t = 1;
+    } else st.quad.t = 0;
+
+    if (pts.length === 0) { st.ra.t = 0; st.rb.t = 0; st.br.t = 0; return; }
+    const A = pts[0], B = pts[1] || pts[0];
+    if (st.ra.v < 1) { st.ax.v = A.x; st.ay.v = A.y; }
+    if (st.rb.v < 1) { st.bx.v = B.x; st.by.v = B.y; }
+    st.ax.t = A.x; st.ay.t = A.y; st.bx.t = B.x; st.by.t = B.y;
+
+    if (pts.length === 1) {
+      st.ra.t = base * 1.2; st.rb.t = 0; st.br.t = 0; broken = false; return;
+    }
+    const len = Math.hypot(B.x - A.x, B.y - A.y);
+    const m = Math.min(W, H);
+    // Volumen bleibt ungefähr gleich: je länger, desto dünner. Zu lang = reißt.
+    if (!broken && len > m * 0.95) broken = true;
+    if (broken && len < m * 0.7) broken = false;
+    const neck = Math.max(0, Math.min(1, (m * 0.95 - len) / (m * 0.75)));
+    const vol = base * base * 9;
+    st.br.t = broken || quad ? 0 : Math.min(base * 1.1, vol / Math.max(len, 1)) * (0.25 + 0.75 * neck);
+    const tip = broken ? base * 1.15 : base * (0.75 + 0.25 * neck);
+    st.ra.t = quad ? base * 0.45 : tip;
+    st.rb.t = quad ? base * 0.45 : tip;
+  }
+
+  // ---------- Touch ----------
+  const touches = new Map();
+  function touchPoints() { return [...touches.values()]; }
+  addEventListener('pointerdown', e => {
+    if (e.target.closest('button, .intro')) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  addEventListener('pointermove', e => { if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
+  const up = e => touches.delete(e.pointerId);
+  addEventListener('pointerup', up); addEventListener('pointercancel', up);
+
+  function orderQuad(p) {
+    const cx = p.reduce((a, q) => a + q.x, 0) / p.length, cy = p.reduce((a, q) => a + q.y, 0) / p.length;
+    return p.slice().sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+  }
+
+  // ---------- Hände ----------
+  let landmarker = null, lastVideoTime = -1, hands = [];
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  function extended(lm, tip, pip, mcp) {
+    // Finger gestreckt, wenn die Spitze deutlich weiter vom Handgelenk weg ist als das Mittelgelenk
+    return dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]) * 1.12 && dist(lm[tip], lm[mcp]) > dist(lm[pip], lm[mcp]) * 1.4;
+  }
+  function thumbOut(lm) {
+    const size = dist(lm[0], lm[9]);
+    return dist(lm[4], lm[5]) > size * 0.55 && dist(lm[4], lm[0]) > dist(lm[3], lm[0]);
+  }
+  function smoothPt(key, x, y) {
+    const prev = smoothPt.mem[key];
+    if (!prev || Math.hypot(prev.x - x, prev.y - y) > 200) { smoothPt.mem[key] = { x, y }; return { x, y }; }
+    prev.x += (x - prev.x) * 0.55; prev.y += (y - prev.y) * 0.55;
+    return { x: prev.x, y: prev.y };
+  }
+  smoothPt.mem = {};
+
+  function readHands() {
+    if (!landmarker || video.readyState < 2) return;
+    if (video.currentTime === lastVideoTime) return;
+    lastVideoTime = video.currentTime;
+    let res;
+    try { res = landmarker.detectForVideo(video, performance.now()); } catch (e) { return; }
+    hands = (res.landmarks || []).map(lm => {
+      const idx = camToScreen(lm[8].x, lm[8].y);
+      const th = camToScreen(lm[4].x, lm[4].y);
+      return {
+        index: { x: idx[0], y: idx[1] }, thumb: { x: th[0], y: th[1] },
+        indexOut: extended(lm, 8, 6, 5), thumbOut: thumbOut(lm),
+      };
+    }).sort((a, b) => a.index.x - b.index.x);
+  }
+
+  function shapeFromHands() {
+    const pts = hands.filter(h => h.indexOut).map((h, i) => smoothPt('i' + i, h.index.x, h.index.y));
+    let quad = null;
+    if (hands.length === 2 && hands.every(h => h.indexOut && h.thumbOut)) {
+      const t = hands.map((h, i) => smoothPt('t' + i, h.thumb.x, h.thumb.y));
+      const q = orderQuad([pts[0], pts[1], t[1], t[0]]);
+      // nur, wenn der Rahmen eine echte Fläche hat
+      const area = Math.abs((q[0].x * q[1].y - q[1].x * q[0].y) + (q[1].x * q[2].y - q[2].x * q[1].y) + (q[2].x * q[3].y - q[3].x * q[2].y) + (q[3].x * q[0].y - q[0].x * q[3].y)) / 2;
+      if (area > W * H * 0.02) quad = q;
+    }
+    return { pts, quad };
+  }
+
+  // ---------- Demo-Bewegung (bis jemand berührt) ----------
+  let demo = true;
+  function demoShape(t) {
+    const m = Math.min(W, H);
+    const cx = W / 2, cy = H * 0.42;
+    const phase = (t / 1000) % 16;
+    if (phase < 10) {
+      const spread = (0.18 + 0.42 * (0.5 - 0.5 * Math.cos(phase / 10 * Math.PI * 2))) * m * 1.15;
+      const wob = Math.sin(t / 700) * m * 0.05;
+      return { pts: [{ x: cx - spread, y: cy + wob }, { x: cx + spread, y: cy - wob }], quad: null };
+    }
+    const k = (phase - 10) / 6;
+    const s = m * (0.28 + 0.06 * Math.sin(k * Math.PI * 4));
+    const tilt = Math.sin(k * Math.PI * 2) * 0.25;
+    const q = [[-1.1, -0.7], [1.1, -0.7], [1.1, 0.7], [-1.1, 0.7]].map(([x, y]) => ({
+      x: cx + (x * Math.cos(tilt) - y * Math.sin(tilt)) * s, y: cy + (x * Math.sin(tilt) + y * Math.cos(tilt)) * s,
+    }));
+    return { pts: [q[0], q[1]], quad: q };
+  }
+
+  // ---------- Status ----------
+  let statusText = '';
+  function setStatus(t) { if (t !== statusText) { statusText = t; $status.textContent = t; } }
+
+  // ---------- Schleife ----------
+  function frame(t) {
+    requestAnimationFrame(frame);
+
+    let shape;
+    const tp = touchPoints();
+    if (tp.length) {
+      demo = false;
+      const q = tp.length >= 3 ? orderQuad(tp.length === 3 ? [...tp, tp[2]] : tp.slice(0, 4)) : null;
+      shape = { pts: tp.length >= 2 ? [tp[0], tp[1]] : [tp[0]], quad: q };
+    } else if (source === 'camera') {
+      readHands();
+      shape = shapeFromHands();
+      if (landmarker) {
+        const n = shape.pts.length;
+        setStatus(shape.quad ? 'Rahmen erkannt' : n === 2 ? (broken ? 'Gerissen: Finger näher zusammen' : 'Zieh die Finger auseinander') : n === 1 ? 'Jetzt den zweiten Zeigefinger' : 'Zeig beide Zeigefinger');
+      }
+    } else if (demo) {
+      shape = demoShape(t);
+    } else {
+      shape = { pts: [], quad: null };
+      setStatus('Leg zwei bis vier Finger aufs Display');
+    }
+    setTargets(shape.pts, shape.quad);
+
+    // Federn: Positionen folgen schnell, Radien schwingen nach wie Flüssigkeit
+    for (const s of [st.ax, st.ay, st.bx, st.by]) stepSpring(s, 0.35, 0.6);
+    for (const s of [st.ra, st.rb]) stepSpring(s, 0.14, 0.72);
+    stepSpring(st.br, 0.12, 0.7);
+    stepSpring(st.quad, 0.2, 0.6);
+    for (const c of st.q) { stepSpring(c.x, 0.3, 0.62); stepSpring(c.y, 0.3, 0.62); }
+
+    // Bild hochladen
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    if (source === 'camera' && video.readyState >= 2) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+    } else if (!frame.patternUploaded || frame.patternUploaded !== source) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, pattern);
+      frame.patternUploaded = source;
+    }
+
+    const P = v => v * dpr;
+    const cvr = cover();
+    gl.uniform1i(U.uTex, 0);
+    gl.uniform2f(U.uRes, cv.width, cv.height);
+    gl.uniform2f(U.uCover, cvr[0], cvr[1]);
+    gl.uniform1f(U.uMirror, mirror);
+    gl.uniform1f(U.uDpr, dpr);
+    gl.uniform2f(U.uA, P(st.ax.v), P(st.ay.v));
+    gl.uniform2f(U.uB, P(st.bx.v), P(st.by.v));
+    gl.uniform1f(U.uRA, P(Math.max(0, st.ra.v)));
+    gl.uniform1f(U.uRB, P(Math.max(0, st.rb.v)));
+    gl.uniform1f(U.uRBr, P(Math.max(0, st.br.v)));
+    st.q.forEach((c, i) => gl.uniform2f(U['uQ' + i], P(c.x.v), P(c.y.v)));
+    gl.uniform1f(U.uQuad, st.quad.v > 0.5 ? 1 : 0);
+    gl.uniform1f(U.uK, P(Math.min(W, H) * 0.09));
+    gl.uniform1f(U.uTime, t / 1000);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // ---------- Start ----------
+  function enterStage() {
+    document.getElementById('intro').hidden = true;
+    document.getElementById('bar').hidden = false;
+  }
+
+  async function startCamera() {
+    enterStage();
+    demo = false;
+    setStatus('Kamera wird gestartet …');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      srcW = video.videoWidth || 1280; srcH = video.videoHeight || 720;
+      source = 'camera'; mirror = 1;
+      $switch.textContent = 'Touch';
+    } catch (e) {
+      setStatus('Kein Kamerazugriff. Touch funktioniert trotzdem.');
+      startTouch(true);
+      return;
+    }
+    setStatus('Lade Handerkennung …');
+    try {
+      const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+      const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+      const opts = (delegate) => ({
+        baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate },
+        runningMode: 'VIDEO', numHands: 2,
+        minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+      });
+      try { landmarker = await vision.HandLandmarker.createFromOptions(files, opts('GPU')); }
+      catch (e) { landmarker = await vision.HandLandmarker.createFromOptions(files, opts('CPU')); }
+      setStatus('Zeig beide Zeigefinger');
+    } catch (e) {
+      setStatus('Handerkennung ließ sich nicht laden. Touch geht trotzdem.');
+    }
+  }
+
+  function startTouch(keepStatus) {
+    enterStage();
+    source = 'pattern'; mirror = 0; srcW = pattern.width; srcH = pattern.height;
+    demo = false;
+    if (!keepStatus) setStatus('Leg zwei bis vier Finger aufs Display');
+    $switch.textContent = 'Kamera';
+  }
+
+  document.getElementById('startCam').addEventListener('click', startCamera);
+  document.getElementById('startTouch').addEventListener('click', () => startTouch(false));
+  $switch.addEventListener('click', () => {
+    if (source === 'camera') {
+      const s = video.srcObject; if (s) s.getTracks().forEach(t => t.stop());
+      video.srcObject = null; startTouch(false);
+    } else startCamera();
+  });
+
+  drawPattern();
+  if (document.fonts) document.fonts.ready.then(() => { drawPattern(); frame.patternUploaded = null; });
+  srcW = pattern.width; srcH = pattern.height;
+  window.__glas = { st, setTouches: pts => { touches.clear(); pts.forEach((p, i) => touches.set(i, p)); } };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
