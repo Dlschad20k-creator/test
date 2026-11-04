@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fliegenhirn-Labor</title>
+<meta name="description" content="Das komplette Gehirn der Fruchtfliege (FlyWire, 139.255 Neuronen) im Browser: Neuronen reizen, stummschalten und beobachten.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: links das Gehirn (Bühne) mit Ergebnissen darunter, rechts der Experiment-Bau. Auf dem Handy untereinander. */
+  :root {
+    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #f7f8fc; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
+    --accent: #2b4dd8; --accent-soft: #e6ebff;
+    --stim: #0a8f86; --stim-soft: #dcf3f1;
+    --silence: #c23a3a; --silence-soft: #f8e3e3;
+    --watch: #a5650a; --watch-soft: #f8eedc;
+    --stage: #070a12; --stage-fg: #c9d2ea;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+      --accent: #8ea4ff; --accent-soft: #232d52;
+      --stim: #3fd0c4; --stim-soft: #133533;
+      --silence: #ff7b7b; --silence-soft: #3a1c22;
+      --watch: #f0b54f; --watch-soft: #3a2c14;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+    --accent: #8ea4ff; --accent-soft: #232d52;
+    --stim: #3fd0c4; --stim-soft: #133533;
+    --silence: #ff7b7b; --silence-soft: #3a1c22;
+    --watch: #f0b54f; --watch-soft: #3a2c14;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  :root { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+  .wrap {
+    max-width: 1320px; margin: 0 auto;
+    padding: max(28px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 64px max(16px, env(safe-area-inset-left));
+    display: grid; gap: 24px;
+  }
+  h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; }
+  h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; font-weight: 700; }
+  h3 { font-size: 15px; font-weight: 700; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--font-mono); font-size: 13px; }
+  header { display: grid; gap: 8px; }
+  header .lead { max-width: 70ch; color: var(--muted); }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+  .stats b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; align-items: start; }
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .col { display: contents; }
+    #stageCard { order: 1; } #presetCard { order: 2; } #builderCard { order: 3; } #resultsCard { order: 4; }
+  }
+  .col { display: grid; gap: 24px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  /* Bühne */
+  .stage { position: relative; background: var(--stage); border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 10; width: 100%; touch-action: none; cursor: grab; }
+  @media (max-width: 640px) { .stage { aspect-ratio: 4 / 5; } .hint { display: none; } }
+  .stage.dragging { cursor: grabbing; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage-ui { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+  .stage-ui > * { pointer-events: auto; }
+  .seg { display: inline-flex; background: rgba(20, 26, 44, .82); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: 2px; }
+  .seg button { background: none; border: 0; color: var(--stage-fg); font: 600 13px var(--font-body); padding: 5px 10px; border-radius: 7px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: rgba(255,255,255,.16); color: #fff; }
+  .legend { position: absolute; left: 12px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--stage-fg); font-size: 12px; pointer-events: none; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .hint { position: absolute; right: 12px; bottom: 10px; color: rgba(201,210,234,.6); font-size: 12px; pointer-events: none; }
+  .loading { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; color: var(--stage-fg); padding: 16px; }
+  .loading .bar { width: min(320px, 70vw); }
+  .bar { height: 6px; border-radius: 3px; background: rgba(128,140,170,.25); overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  .tooltip { position: absolute; pointer-events: none; background: rgba(15,20,34,.94); color: #e8ecf8; font-size: 12.5px; padding: 6px 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); max-width: 260px; display: none; }
+
+  .playback { display: flex; align-items: center; gap: 10px; }
+  .playback input[type=range] { flex: 1; min-width: 0; }
+  .playback .mono { min-width: 70px; text-align: right; }
+
+  /* Formular-Elemente */
+  button.btn { font: 600 14px var(--font-body); border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); padding: 7px 12px; cursor: pointer; }
+  button.btn:hover { border-color: var(--muted); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 16px; padding: 11px 16px; width: 100%; }
+  :root[data-theme="dark"] button.primary { color: #0f1422; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #0f1422; } }
+  button.mini { font: 600 12px var(--font-body); border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  button.mini.stim { color: var(--stim); border-color: color-mix(in srgb, var(--stim) 45%, var(--line)); }
+  button.mini.silence { color: var(--silence); border-color: color-mix(in srgb, var(--silence) 45%, var(--line)); }
+  button.mini.watch { color: var(--watch); border-color: color-mix(in srgb, var(--watch) 45%, var(--line)); }
+  input[type=search], input[type=number], input[type=text], select {
+    font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; width: 100%; min-width: 0;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .presets { display: grid; gap: 8px; }
+  .preset { text-align: left; display: grid; gap: 2px; font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+  .preset:hover { border-color: var(--accent); }
+  .preset b { font-weight: 600; }
+  .preset span { font-size: 13px; color: var(--muted); }
+
+  .results { display: grid; gap: 4px; max-height: 320px; overflow: auto; }
+  .res { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 8px; }
+  .res:hover { background: var(--surface-2); }
+  .res .name { min-width: 0; }
+  .res .name button { all: unset; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
+  .res .name button:hover { color: var(--accent); }
+  .res .sub { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .res .acts { display: flex; gap: 4px; }
+
+  .lists { display: grid; gap: 12px; }
+  .list h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .chips { display: grid; gap: 6px; }
+  .chip { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 8px 6px 10px; border-radius: 9px; font-size: 14px; }
+  .chip.stim { background: var(--stim-soft); }
+  .chip.silence { background: var(--silence-soft); }
+  .chip.watch { background: var(--watch-soft); }
+  .chip .n { overflow-wrap: anywhere; }
+  .chip .n small { color: var(--muted); }
+  .chip input[type=number] { width: 78px; padding: 3px 6px; font-size: 13px; }
+  .chip .x { all: unset; cursor: pointer; padding: 0 4px; color: var(--muted); font-size: 18px; line-height: 1; }
+  .chip .x:hover { color: var(--fg); }
+  .empty { font-size: 13.5px; color: var(--muted); padding: 2px 0; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details[open] summary { margin-bottom: 10px; }
+  .runrow { display: grid; gap: 8px; }
+  .status-line { font-size: 13.5px; color: var(--muted); min-height: 1.5em; }
+
+  /* Ergebnisse */
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font: 700 24px var(--font-display); font-variant-numeric: tabular-nums; }
+  .kpi span { font-size: 13px; color: var(--muted); }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+  .tabs button { background: none; border: 0; color: var(--muted); font: 600 13px var(--font-body); padding: 5px 10px; border-radius: 7px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td .link { all: unset; cursor: pointer; font-weight: 600; }
+  td .link:hover { color: var(--accent); }
+  .rbar { position: relative; min-width: 110px; }
+  .rbar i { position: absolute; left: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: var(--accent); opacity: .3; }
+  .rbar span { position: relative; }
+  .delta-up { color: var(--stim); } .delta-down { color: var(--silence); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
+  .tag.stim { background: var(--stim-soft); color: var(--stim); }
+  .tag.silence { background: var(--silence-soft); color: var(--silence); }
+  .tag.watch { background: var(--watch-soft); color: var(--watch); }
+  #raster { width: 100%; height: 360px; display: block; background: var(--surface-2); border-radius: 10px; cursor: pointer; }
+
+  /* Neuron-Steckbrief */
+  dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); padding: 0; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+  dialog::backdrop { background: rgba(5, 8, 16, .55); }
+  .dlg { padding: 20px; display: grid; gap: 14px; }
+  .dlg-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 14px; font-size: 14px; }
+  .facts div span { display: block; font-size: 12px; color: var(--muted); }
+  .partners { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .partners { grid-template-columns: 1fr; } .fields { grid-template-columns: 1fr; } }
+  .partners ol { margin: 6px 0 0; padding-left: 20px; font-size: 14px; display: grid; gap: 3px; }
+  .partners li button { all: unset; cursor: pointer; }
+  .partners li button:hover { color: var(--accent); }
+  .partners li small { color: var(--muted); }
+  .dlg-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .saved { display: grid; gap: 6px; }
+  .saved-row { display: flex; gap: 6px; align-items: center; }
+  .saved-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 90ch; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Fliegenhirn-Labor</h1>
+    <p class="lead">Das komplette Gehirn einer Fruchtfliege – jedes Neuron und jede Synapse aus dem FlyWire-Konnektom. Wähle Neuronen aus, reize sie, schalte andere stumm und sieh zu, wie sich die Aktivität durch das Netz ausbreitet.</p>
+    <div class="stats" id="stats"><span>Lade Daten …</span></div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card" id="stageCard" aria-label="Gehirnansicht">
+        <div class="stage" id="stage">
+          <canvas id="brain"></canvas>
+          <div class="stage-ui">
+            <div class="seg" role="group" aria-label="Blickrichtung">
+              <button data-view="front" aria-pressed="true">Vorne</button>
+              <button data-view="top" aria-pressed="false">Oben</button>
+              <button data-view="side" aria-pressed="false">Seite</button>
+            </div>
+            <div class="seg" role="group" aria-label="Färbung">
+              <button data-color="class" aria-pressed="true">Klassen</button>
+              <button data-color="plain" aria-pressed="false">Schlicht</button>
+            </div>
+          </div>
+          <div class="legend" id="legend"></div>
+          <div class="hint">ziehen = drehen · Mausrad = zoomen · tippen = Neuron</div>
+          <div class="tooltip" id="tooltip"></div>
+          <div class="loading" id="loading">
+            <div id="loadingText">Lade das Fliegenhirn …</div>
+            <div class="bar"><span id="loadingBar"></span></div>
+          </div>
+        </div>
+        <div class="playback" id="playback" hidden>
+          <button class="btn" id="playBtn" aria-label="Abspielen">▶ Abspielen</button>
+          <input type="range" id="timeSlider" min="0" max="1000" value="1000" step="1" aria-label="Zeitpunkt">
+          <span class="mono" id="timeLabel">alle</span>
+        </div>
+      </section>
+
+      <section class="card" id="resultsCard" hidden>
+        <div class="card-head">
+          <h2>Ergebnis</h2>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn" id="csvBtn">CSV herunterladen</button>
+          </div>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div id="watchOut"></div>
+        <div class="card-head">
+          <h3>Aktivste Neuronen</h3>
+          <div class="tabs" role="group" aria-label="Gruppierung">
+            <button data-tab="neurons" aria-pressed="true">Neuronen</button>
+            <button data-tab="types" aria-pressed="false">Zelltypen</button>
+            <button data-tab="classes" aria-pressed="false">Klassen</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="topOut"></div>
+        <h3>Spike-Raster <span class="muted" style="font-weight:400">(erster Durchlauf, Zeile antippen für Steckbrief)</span></h3>
+        <canvas id="raster"></canvas>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" id="presetCard">
+        <h2>Fertige Experimente</h2>
+        <div class="presets" id="presets"></div>
+      </section>
+
+      <section class="card" id="builderCard">
+        <h2>Eigenes Experiment</h2>
+        <label class="field">Neuronen suchen (Zelltyp, Beschreibung, Klasse oder ID)
+          <input type="search" id="search" placeholder="z. B. LC4, sugar, MN9, olfactory, DNp01" autocomplete="off" disabled>
+        </label>
+        <div class="results" id="results"></div>
+
+        <div class="lists">
+          <div class="list"><h3><span class="dot" style="background:var(--stim)"></span>Reizen</h3><div class="chips" id="list-stim"></div></div>
+          <div class="list"><h3><span class="dot" style="background:var(--silence)"></span>Stummschalten</h3><div class="chips" id="list-silence"></div></div>
+          <div class="list"><h3><span class="dot" style="background:var(--watch)"></span>Beobachten</h3><div class="chips" id="list-watch"></div></div>
+        </div>
+
+        <details>
+          <summary>Einstellungen des Modells</summary>
+          <div class="fields">
+            <label class="field">Dauer (ms)<input type="number" id="pT" value="1000" min="50" max="5000" step="50"></label>
+            <label class="field">Durchläufe<input type="number" id="pTrials" value="1" min="1" max="20" step="1"></label>
+            <label class="field">Gewicht je Synapse (mV)<input type="number" id="pW" value="0.275" min="0" max="5" step="0.025"></label>
+            <label class="field">Zufallszahl (Seed)<input type="number" id="pSeed" value="1" min="1" step="1"></label>
+            <label class="field" style="grid-column: 1 / -1">Dopamin, Serotonin, Octopamin wirken
+              <select id="pMod"><option value="1">erregend</option><option value="-1">hemmend</option><option value="0">gar nicht</option></select>
+            </label>
+          </div>
+          <p class="muted" style="font-size:13px; margin-top:10px">Leaky-Integrate-and-Fire-Modell nach Shiu et al. (2024): Acetylcholin erregt, GABA und Glutamat hemmen. Jede Synapse verschiebt das Membranpotential des Ziels um das eingestellte Gewicht.</p>
+        </details>
+
+        <div class="runrow">
+          <button class="primary" id="runBtn" disabled>Experiment starten</button>
+          <div class="bar" id="runBar" hidden><span></span></div>
+          <div class="status-line" id="runStatus"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn" id="saveBtn">Speichern</button>
+            <button class="btn" id="shareBtn">Link kopieren</button>
+            <button class="btn" id="clearBtn">Alles leeren</button>
+          </div>
+        </div>
+        <div class="saved" id="saved"></div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <p>Daten: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024, Nature), Lizenz CC BY-NC 4.0. Abfrage-Werkzeug: <a href="https://codex.flywire.ai" target="_blank" rel="noopener">Codex</a> (Murthy Lab, Princeton). Modell: Shiu et al. 2024, Nature.</p>
+    <p>Die Simulation ist ein vereinfachtes Modell: Sie kennt nur Verdrahtung und Transmitter, keine Neuromodulation, kein Lernen und keinen Körper. Ergebnisse sind Hypothesen, keine Messungen.</p>
+    <p><a href="../">← zurück zur Testseite</a></p>
+  </footer>
+</div>
+
+<dialog id="cardDlg"><div class="dlg" id="cardBody"></div></dialog>
+
+<script>
+"use strict";
+// ======================================================================
+// Daten laden
+// ======================================================================
+const $ = (s, el = document) => el.querySelector(s);
+const fmt = new Intl.NumberFormat("de-DE");
+const fmt1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+const NT_NAME = { ACH: "Acetylcholin", GABA: "GABA", GLUT: "Glutamat", DA: "Dopamin", SER: "Serotonin", OCT: "Octopamin", "": "unbekannt" };
+const SC_NAME = {
+  optic: "Optischer Lappen", central: "Zentralhirn", sensory: "Sinnesneuron", visual_projection: "Seh-Projektion",
+  ascending: "Aufsteigend", descending: "Absteigend", motor: "Motorneuron", visual_centrifugal: "Seh-Zentrifugal",
+  endocrine: "Hormonell", sensory_ascending: "Sinnes-aufsteigend", "": "ohne Klasse",
+};
+const SC_COLOR = {
+  optic: [70, 110, 210], central: [120, 200, 150], sensory: [240, 170, 70], visual_projection: [150, 120, 230],
+  ascending: [90, 200, 230], descending: [230, 110, 170], motor: [250, 230, 120], visual_centrifugal: [200, 140, 220],
+  endocrine: [255, 140, 110], sensory_ascending: [240, 200, 110], "": [130, 140, 160],
+};
+const D = {}; // alle Daten
+
+async function fetchBytes(url, onProgress) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + ": HTTP " + r.status);
+  const total = +r.headers.get("content-length") || 0;
+  const reader = r.body.getReader();
+  const parts = []; let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value); got += value.length;
+    onProgress(got, total);
+  }
+  let bytes = new Uint8Array(got), o = 0;
+  for (const p of parts) { bytes.set(p, o); o += p.length; }
+  // gzip selbst entpacken (falls der Server es nicht schon getan hat)
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const ds = new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")));
+    bytes = new Uint8Array(await ds.arrayBuffer());
+  }
+  return bytes;
+}
+
+async function loadData() {
+  const files = [["data/meta.json.gz", 1.7e6], ["data/pos.bin.gz", 0.8e6], ["data/conn.bin.gz", 9.2e6]];
+  const totalGuess = files.reduce((a, f) => a + f[1], 0);
+  const got = files.map(() => 0);
+  const prog = (k) => (g) => {
+    got[k] = g;
+    const f = Math.min(1, got.reduce((a, b) => a + b, 0) / totalGuess);
+    $("#loadingBar").style.width = (f * 100).toFixed(0) + "%";
+    $("#loadingText").textContent = "Lade das Fliegenhirn … " + fmt1.format(got.reduce((a, b) => a + b, 0) / 1e6) + " MB";
+  };
+  const [metaB, posB, connB] = await Promise.all(files.map((f, k) => fetchBytes(f[0], prog(k))));
+  $("#loadingText").textContent = "Baue das Netzwerk auf …";
+  await new Promise((r) => setTimeout(r, 20));
+
+  const meta = JSON.parse(new TextDecoder().decode(metaB));
+  const N = meta.count;
+  D.meta = meta; D.N = N;
+  D.ids = meta.ids; D.label = meta.label; D.alt = meta.alt;
+  D.dict = meta.dict;
+  for (const k of Object.keys(meta.col)) D[k] = Uint32Array.from(meta.col[k]);
+  D.typeName = (i) => D.dict.type[D.type[i]];
+  D.ntName = (i) => D.dict.nt[D.nt[i]];
+  D.scName = (i) => D.dict.sc[D.sc[i]];
+  D.sideName = (i) => D.dict.side[D.side[i]];
+
+  const buf = connB.buffer.slice(connB.byteOffset, connB.byteOffset + connB.byteLength);
+  D.offsets = new Uint32Array(buf, 0, N + 1);
+  const E = D.offsets[N]; D.E = E;
+  D.post = new Uint32Array(buf, (N + 1) * 4, E);
+  D.syn = new Uint16Array(buf, (N + 1) * 4 + E * 4, E);
+  D.ntCode = Uint8Array.from(D.nt, (k) => { const n = D.dict.nt[k]; return n === "ACH" ? 0 : (n === "GABA" || n === "GLUT") ? 1 : n ? 2 : 3; });
+
+  // Positionen zentrieren und auf [-1, 1] skalieren
+  const pos = new Uint16Array(posB.buffer.slice(posB.byteOffset, posB.byteOffset + posB.byteLength));
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < N; i++) for (let a = 0; a < 3; a++) { const v = pos[i * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
+  const c = mn.map((m, a) => (m + mx[a]) / 2), s = Math.max(...mx.map((m, a) => m - mn[a])) / 2;
+  D.px = new Float32Array(N); D.py = new Float32Array(N); D.pz = new Float32Array(N);
+  for (let i = 0; i < N; i++) { D.px[i] = (pos[i * 3] - c[0]) / s; D.py[i] = (pos[i * 3 + 1] - c[1]) / s; D.pz[i] = (pos[i * 3 + 2] - c[2]) / s; }
+
+  // Suchtexte vorbereiten
+  D.searchText = new Array(N);
+  for (let i = 0; i < N; i++) D.searchText[i] = (D.typeName(i) + " " + D.alt[i] + " " + D.label[i]).toLowerCase();
+
+  let syn = 0; for (let e = 0; e < E; e++) syn += D.syn[e];
+  $("#stats").innerHTML = `<span><b>${fmt.format(N)}</b> Neuronen</span><span><b>${fmt.format(E)}</b> Verbindungen</span><span><b>${fmt.format(syn)}</b> Synapsen</span><span>FlyWire-Snapshot <b>${meta.version}</b></span>`;
+}
+
+// eingehende Verbindungen erst bei Bedarf aufbauen
+function inputs() {
+  if (D.inOff) return;
+  const N = D.N, E = D.E;
+  const cnt = new Uint32Array(N + 1);
+  for (let e = 0; e < E; e++) cnt[D.post[e] + 1]++;
+  for (let i = 0; i < N; i++) cnt[i + 1] += cnt[i];
+  const fill = cnt.slice(0, N), pre = new Uint32Array(E), syn = new Uint16Array(E);
+  for (let i = 0; i < N; i++) for (let e = D.offsets[i]; e < D.offsets[i + 1]; e++) { const j = D.post[e], k = fill[j]++; pre[k] = i; syn[k] = D.syn[e]; }
+  D.inOff = cnt; D.inPre = pre; D.inSyn = syn;
+}
+
+function displayName(i) {
+  const t = D.typeName(i);
+  if (t) return t;
+  const l = D.label[i].split(/[;|,(]/)[0].trim();
+  if (l && l.length <= 40) return l;
+  return "Neuron …" + D.ids[i].slice(-6);
+}
+const sideShort = (i) => ({ left: "L", right: "R", center: "M" }[D.sideName(i)] || "");
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ======================================================================
+// Experiment-Zustand
+// ======================================================================
+const state = { stim: [], silence: [], watch: [] };
+let groupSeq = 1;
+let lastRes = null, prevRes = null;
+
+function addGroup(kind, name, idx, rate) {
+  if (!idx.length) return;
+  const g = { id: groupSeq++, name, idx: Array.from(idx) };
+  if (kind === "stim") g.rate = rate || 100;
+  state[kind].push(g);
+  renderLists(); renderBrainBase(); drawBrain();
+}
+function setOf(kind) { const s = new Set(); for (const g of state[kind]) for (const i of g.idx) s.add(i); return s; }
+
+function renderLists() {
+  for (const kind of ["stim", "silence", "watch"]) {
+    const el = $("#list-" + kind);
+    if (!state[kind].length) {
+      el.innerHTML = `<div class="empty">${{ stim: "Noch nichts – suche Neuronen und tippe auf „Reizen“.", silence: "Optional: Neuronen, die nicht feuern dürfen.", watch: "Optional: Neuronen, deren Reaktion du sehen willst." }[kind]}</div>`;
+      continue;
+    }
+    el.innerHTML = state[kind].map((g) => `
+      <div class="chip ${kind}">
+        <span class="n">${esc(g.name)} <small>· ${fmt.format(g.idx.length)} Neuron${g.idx.length === 1 ? "" : "en"}</small></span>
+        ${kind === "stim" ? `<label><span class="sr">Reizfrequenz in Hz</span><input type="number" min="0" max="1000" step="10" value="${g.rate}" data-rate="${g.id}" title="Reizfrequenz (Hz)"></label>` : "<span></span>"}
+        <button class="x" data-remove="${kind}:${g.id}" aria-label="entfernen">×</button>
+      </div>`).join("");
+  }
+}
+document.addEventListener("input", (e) => {
+  const id = e.target.dataset && e.target.dataset.rate;
+  if (id) { const g = state.stim.find((g) => g.id === +id); if (g) g.rate = Math.max(0, +e.target.value || 0); }
+});
+document.addEventListener("click", (e) => {
+  const r = e.target.closest("[data-remove]");
+  if (r) {
+    const [kind, id] = r.dataset.remove.split(":");
+    state[kind] = state[kind].filter((g) => g.id !== +id);
+    renderLists(); renderBrainBase(); drawBrain();
+  }
+});
+
+// ======================================================================
+// Suche
+// ======================================================================
+function search(q) {
+  q = q.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const out = [];
+  if (/^\d{6,}$/.test(q)) {
+    for (let i = 0; i < D.N; i++) if (D.ids[i].includes(q)) { out.push({ name: displayName(i), idx: [i], single: i }); if (out.length > 20) break; }
+    return out;
+  }
+  // Zelltypen
+  const typeHits = [];
+  D.dict.type.forEach((t, k) => { if (t && t.toLowerCase().includes(q)) typeHits.push(k); });
+  typeHits.sort((a, b) => (D.dict.type[a].toLowerCase() === q ? -1 : 0) - (D.dict.type[b].toLowerCase() === q ? -1 : 0) || D.dict.type[a].length - D.dict.type[b].length);
+  const byType = new Map(typeHits.slice(0, 25).map((k) => [k, []]));
+  if (byType.size) for (let i = 0; i < D.N; i++) { const a = byType.get(D.type[i]); if (a) a.push(i); }
+  for (const [k, idx] of byType) out.push({ name: D.dict.type[k], idx, sub: "Zelltyp · " + summarize(idx) });
+  // Klassen
+  for (const key of ["sc", "cls"]) {
+    D.dict[key].forEach((t, k) => {
+      const nice = key === "sc" ? (SC_NAME[t] || t) : t;
+      if (t && (t.toLowerCase().includes(q) || nice.toLowerCase().includes(q))) {
+        const idx = []; for (let i = 0; i < D.N; i++) if (D[key][i] === k) idx.push(i);
+        out.push({ name: nice, idx, sub: (key === "sc" ? "Hauptklasse" : "Klasse") + " · " + fmt.format(idx.length) + " Neuronen" });
+      }
+    });
+  }
+  // Text in Beschreibungen
+  const textHits = [];
+  for (let i = 0; i < D.N; i++) if (D.searchText[i].includes(q)) textHits.push(i);
+  if (textHits.length > 1) out.push({ name: "„" + q + "“ in Beschreibung/Typ", idx: textHits, sub: "alle Treffer · " + summarize(textHits) });
+  for (const i of textHits.slice(0, 15)) out.push({ name: displayName(i) + (sideShort(i) ? " (" + sideShort(i) + ")" : ""), idx: [i], single: i, sub: D.label[i] || SC_NAME[D.scName(i)] || "" });
+  return out.slice(0, 60);
+}
+function summarize(idx) {
+  const sides = { L: 0, R: 0 };
+  for (const i of idx) { const s = sideShort(i); if (s === "L") sides.L++; else if (s === "R") sides.R++; }
+  return fmt.format(idx.length) + " Neuron" + (idx.length === 1 ? "" : "en") + (sides.L || sides.R ? ` (${sides.L} L / ${sides.R} R)` : "");
+}
+let searchHits = [];
+function renderSearch() {
+  const q = $("#search").value;
+  searchHits = search(q);
+  const el = $("#results");
+  if (!q.trim()) { el.innerHTML = ""; return; }
+  if (!searchHits.length) { el.innerHTML = `<div class="empty">Nichts gefunden. Versuche englische Begriffe wie „olfactory“, „bitter“, „wing“ oder Zelltypen wie „DNa02“.</div>`; return; }
+  el.innerHTML = searchHits.map((h, k) => `
+    <div class="res">
+      <div class="name"><button data-hit="${k}">${esc(h.name)}</button><div class="sub">${esc(h.sub || summarize(h.idx))}</div></div>
+      <div class="acts">
+        <button class="mini stim" data-add="stim:${k}">Reizen</button>
+        <button class="mini silence" data-add="silence:${k}">Stumm</button>
+        <button class="mini watch" data-add="watch:${k}">Beob.</button>
+      </div>
+    </div>`).join("");
+}
+let searchTimer = 0;
+$("#search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderSearch, 160); });
+$("#results").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-add]");
+  if (a) { const [kind, k] = a.dataset.add.split(":"); const h = searchHits[+k]; addGroup(kind, h.name, h.idx); return; }
+  const h = e.target.closest("[data-hit]");
+  if (h) { const hit = searchHits[+h.dataset.hit]; if (hit.idx.length === 1) openCard(hit.idx[0]); else { highlight = new Set(hit.idx); renderBrainBase(); drawBrain(); } }
+});
+
+// ======================================================================
+// Gehirn zeichnen (Punktwolke auf Canvas, additiv)
+// ======================================================================
+const canvas = $("#brain"), ctx = canvas.getContext("2d");
+const view = { yaw: 0, pitch: 0, zoom: 1, colorMode: "class" };
+let img = null, base = null, W = 0, H = 0, dpr = 1;
+let highlight = null; // Suchtreffer kurz hervorheben
+let proj = null; // projizierte Pixel je Neuron (fürs Antippen)
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.max(1, Math.round(r.width * dpr)); H = Math.max(1, Math.round(r.height * dpr));
+  canvas.width = W; canvas.height = H;
+  img = ctx.createImageData(W, H); base = new Uint8ClampedArray(W * H * 4);
+  if (D.N) { renderBrainBase(); drawBrain(); }
+}
+function project() {
+  const N = D.N, cy = Math.cos(view.yaw), sy = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+  const sc = Math.min(W, H * 1.75) * 0.47 * view.zoom, ox = W / 2, oy = H / 2;
+  if (!proj || proj.length !== N * 2) proj = new Int32Array(N * 2);
+  for (let i = 0; i < N; i++) {
+    const x = D.px[i], y = D.py[i], z = D.pz[i];
+    const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+    const y1 = y * cp - z1 * sp;
+    proj[i * 2] = (ox + x1 * sc) | 0; proj[i * 2 + 1] = (oy + y1 * sc) | 0;
+  }
+}
+function splat(buf, i, r, g, b, size) {
+  const x0 = proj[i * 2], y0 = proj[i * 2 + 1];
+  const h = size >> 1;
+  for (let dy = -h; dy < size - h; dy++) {
+    const y = y0 + dy; if (y < 0 || y >= H) continue;
+    for (let dx = -h; dx < size - h; dx++) {
+      const x = x0 + dx; if (x < 0 || x >= W) continue;
+      const o = (y * W + x) * 4;
+      buf[o] += r; buf[o + 1] += g; buf[o + 2] += b;
+    }
+  }
+}
+function heat(f) { // 0..1 -> Farbe (dunkelrot -> orange -> gelb -> weiß)
+  f = Math.max(0, Math.min(1, f));
+  return [255 * Math.min(1, 0.35 + f * 1.3), 255 * Math.max(0, Math.min(1, f * 1.6 - 0.25)), 255 * Math.max(0, f * 2 - 1)];
+}
+function renderBrainBase() {
+  if (!D.N || !base) return;
+  project();
+  base.fill(0);
+  for (let o = 0; o < base.length; o += 4) { base[o] = 7; base[o + 1] = 10; base[o + 2] = 18; base[o + 3] = 255; }
+  const plain = view.colorMode === "plain";
+  const k = lastRes ? 0.5 : 1; // nach einem Lauf die Grundwolke dimmen
+  const s = dpr >= 1.5 ? 2 : 1;
+  const cols = D.dict.sc.map((n) => (SC_COLOR[n] || SC_COLOR[""]).map((c) => c * (plain ? 0 : 1)));
+  for (let i = 0; i < D.N; i++) {
+    const c = plain ? [110, 125, 160] : cols[D.sc[i]];
+    splat(base, i, c[0] * 0.13 * k, c[1] * 0.13 * k, c[2] * 0.13 * k, s);
+  }
+  if (lastRes) {
+    const r = lastRes.rates; let mx = 1;
+    for (let i = 0; i < D.N; i++) if (r[i] > mx && !lastRes.stimSet.has(i)) mx = r[i];
+    const lmx = Math.log1p(mx);
+    for (let i = 0; i < D.N; i++) if (r[i] > 0) { const c = heat(Math.log1p(r[i]) / lmx); splat(base, i, c[0] * .8, c[1] * .8, c[2] * .8, s + 1); }
+  }
+  const mark = (set, rgb, size) => { for (const i of set) splat(base, i, rgb[0], rgb[1], rgb[2], size); };
+  mark(setOf("silence"), [230, 60, 60], s + 2);
+  mark(setOf("stim"), [40, 230, 210], s + 2);
+  mark(setOf("watch"), [255, 190, 60], s + 3);
+  if (highlight) mark(highlight, [200, 210, 255], s + 2);
+}
+let playT = null; // aktueller Zeitpunkt der Wiedergabe (ms) oder null
+function drawBrain() {
+  if (!img) return;
+  img.data.set(base);
+  if (lastRes && playT !== null) {
+    const T = lastRes.rasterT, I = lastRes.rasterI, win = 6;
+    let lo = 0, hi = T.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (T[m] < playT - win) lo = m + 1; else hi = m; }
+    const s = dpr >= 1.5 ? 4 : 3;
+    for (let k = lo; k < T.length && T[k] <= playT; k++) {
+      const a = 1 - (playT - T[k]) / win;
+      splat(img.data, I[k], 255 * a, 245 * a, 200 * a, s);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function renderLegend() {
+  const items = view.colorMode === "class"
+    ? ["optic", "central", "sensory", "visual_projection", "descending", "ascending", "motor"].map((k) => [SC_NAME[k], SC_COLOR[k]])
+    : [];
+  const extra = [["gereizt", [40, 230, 210]], ["stumm", [230, 60, 60]], ["beobachtet", [255, 190, 60]]];
+  if (lastRes) extra.unshift(["aktiv (Farbe = Rate)", [255, 160, 40]]);
+  $("#legend").innerHTML = [...items, ...extra].map(([n, c]) => `<span><i style="background:rgb(${c.join(",")})"></i>${esc(n)}</span>`).join("");
+}
+
+// Drehen, Zoomen, Antippen
+(function interact() {
+  const stage = $("#stage");
+  const pts = new Map(); let moved = 0, startDist = 0, startZoom = 1, raf = 0;
+  const redraw = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderBrainBase(); drawBrain(); }); };
+  stage.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".seg")) return;
+    stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); moved = 0;
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; startDist = Math.hypot(a[0] - b[0], a[1] - b[1]); startZoom = view.zoom; }
+    stage.classList.add("dragging");
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) { hover(e); return; }
+    const p = pts.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1];
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      view.zoom = Math.max(0.5, Math.min(8, startZoom * d / startDist)); moved += 10; redraw(); return;
+    }
+    moved += Math.abs(dx) + Math.abs(dy);
+    view.yaw += dx * 0.008; view.pitch = Math.max(-1.57, Math.min(1.57, view.pitch + dy * 0.008));
+    if (moved > 3) { setViewButtons(null); redraw(); }
+  });
+  const end = (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId); stage.classList.remove("dragging");
+    if (moved < 4 && pts.size === 0 && D.N) { const i = pick(e); if (i >= 0) openCard(i); }
+  };
+  stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+  stage.addEventListener("pointerleave", () => { $("#tooltip").style.display = "none"; });
+  stage.addEventListener("wheel", (e) => { e.preventDefault(); view.zoom = Math.max(0.5, Math.min(8, view.zoom * Math.exp(-e.deltaY * 0.0015))); redraw(); }, { passive: false });
+  stage.addEventListener("dblclick", () => { view.zoom = 1; redraw(); });
+  let hoverT = 0;
+  function hover(e) {
+    if (!D.N || e.pointerType !== "mouse") return;
+    clearTimeout(hoverT);
+    hoverT = setTimeout(() => {
+      const i = pick(e), tt = $("#tooltip");
+      if (i < 0) { tt.style.display = "none"; return; }
+      const r = stage.getBoundingClientRect();
+      const rate = lastRes ? ` · ${fmt1.format(lastRes.rates[i])} Hz` : "";
+      tt.innerHTML = `<b>${esc(displayName(i))}</b> ${sideShort(i)}<br><span style="opacity:.75">${esc(SC_NAME[D.scName(i)] || "")} · ${esc(NT_NAME[D.ntName(i)] || "")}${rate}</span>`;
+      tt.style.display = "block";
+      tt.style.left = Math.min(r.width - 270, e.clientX - r.left + 14) + "px";
+      tt.style.top = (e.clientY - r.top + 14) + "px";
+    }, 40);
+  }
+  function pick(e) {
+    const r = canvas.getBoundingClientRect();
+    const x = (e.clientX - r.left) * dpr, y = (e.clientY - r.top) * dpr;
+    let best = -1, bd = (9 * dpr) ** 2, bestActive = -1, bad = (12 * dpr) ** 2;
+    const special = new Set([...setOf("stim"), ...setOf("watch"), ...setOf("silence")]);
+    for (let i = 0; i < D.N; i++) {
+      const dx = proj[i * 2] - x, dy = proj[i * 2 + 1] - y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+      if (d < bad && ((lastRes && lastRes.rates[i] > 0) || special.has(i))) { bad = d; bestActive = i; }
+    }
+    return bestActive >= 0 ? bestActive : best;
+  }
+})();
+const VIEWS = { front: [0, 0], top: [0, -1.5708], side: [1.5708, 0] };
+function setViewButtons(v) { document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v))); }
+document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
+  [view.yaw, view.pitch] = VIEWS[b.dataset.view]; setViewButtons(b.dataset.view); renderBrainBase(); drawBrain();
+}));
+document.querySelectorAll("[data-color]").forEach((b) => b.addEventListener("click", () => {
+  view.colorMode = b.dataset.color;
+  document.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  renderLegend(); renderBrainBase(); drawBrain();
+}));
+new ResizeObserver(resize).observe(canvas);
+
+// ======================================================================
+// Simulation (Web Worker)
+// ======================================================================
+let worker = null, runId = 0;
+function startWorker() {
+  worker = new Worker("sim-worker.js");
+  worker.postMessage({ cmd: "init", offsets: D.offsets.slice().buffer, post: D.post.slice().buffer, syn: D.syn.slice().buffer, ntCode: D.ntCode.slice().buffer });
+  worker.onmessage = (ev) => {
+    const m = ev.data;
+    if (m.type === "ready") { $("#runBtn").disabled = false; }
+    else if (m.type === "progress") { $("#runBar span").style.width = (m.f * 100).toFixed(0) + "%"; }
+    else if (m.type === "done") onDone(m.res);
+    else if (m.type === "error") { $("#runStatus").textContent = "Fehler: " + m.message; finishRun(); }
+  };
+}
+function readParams() {
+  return {
+    T: Math.max(50, Math.min(5000, +$("#pT").value || 1000)),
+    trials: Math.max(1, Math.min(20, +$("#pTrials").value || 1)),
+    wSyn: +$("#pW").value || 0.275,
+    modSign: +$("#pMod").value,
+    seed: Math.max(1, +$("#pSeed").value || 1),
+  };
+}
+function run() {
+  if (!state.stim.length) { $("#runStatus").textContent = "Wähle zuerst Neuronen zum Reizen aus."; return; }
+  const p = readParams();
+  p.stim = state.stim.map((g) => ({ idx: g.idx, rate: g.rate }));
+  p.silence = [...setOf("silence")];
+  $("#runBtn").disabled = true; $("#runBtn").textContent = "Simuliere …";
+  $("#runBar").hidden = false; $("#runBar span").style.width = "0%";
+  $("#runStatus").textContent = `${fmt.format(p.T * p.trials)} ms Fliegenhirn werden berechnet …`;
+  pending = { stimSet: setOf("stim"), silenceSet: setOf("silence"), watch: state.watch.map((g) => ({ name: g.name, idx: g.idx.slice() })), setup: snapshot() };
+  worker.postMessage({ cmd: "run", id: ++runId, params: p });
+}
+let pending = null;
+function finishRun() { $("#runBtn").disabled = false; $("#runBtn").textContent = "Experiment starten"; $("#runBar").hidden = true; }
+function onDone(res) {
+  finishRun();
+  prevRes = lastRes;
+  lastRes = Object.assign(res, pending);
+  let active = 0; for (let i = 0; i < D.N; i++) if (res.rates[i] > 0 && !lastRes.stimSet.has(i)) active++;
+  lastRes.active = active;
+  $("#runStatus").textContent = `Fertig in ${fmt1.format(res.ms / 1000)} s.` + (prevRes ? " Δ-Spalten vergleichen mit dem vorigen Lauf." : "");
+  playT = null; $("#timeSlider").max = res.params.T; $("#timeSlider").value = res.params.T; $("#timeLabel").textContent = "alle";
+  $("#playback").hidden = false;
+  renderLegend(); renderBrainBase(); drawBrain(); renderResults();
+}
+$("#runBtn").addEventListener("click", run);
+
+// Wiedergabe
+let playing = false, playStart = 0, playFrom = 0;
+function playLoop(now) {
+  if (!playing) return;
+  const T = lastRes.params.T;
+  playT = playFrom + (now - playStart) * 0.25; // 4x Zeitlupe
+  if (playT >= T) { playT = T; playing = false; $("#playBtn").textContent = "▶ Abspielen"; }
+  $("#timeSlider").value = playT; $("#timeLabel").textContent = fmt.format(Math.round(playT)) + " ms";
+  drawBrain();
+  if (playing) requestAnimationFrame(playLoop);
+}
+$("#playBtn").addEventListener("click", () => {
+  if (!lastRes) return;
+  if (playing) { playing = false; $("#playBtn").textContent = "▶ Abspielen"; return; }
+  playing = true; $("#playBtn").textContent = "❚❚ Pause";
+  playFrom = playT === null || playT >= lastRes.params.T ? 0 : playT; playStart = performance.now();
+  requestAnimationFrame(playLoop);
+});
+$("#timeSlider").addEventListener("input", (e) => {
+  playing = false; $("#playBtn").textContent = "▶ Abspielen";
+  playT = +e.target.value; $("#timeLabel").textContent = fmt.format(Math.round(playT)) + " ms"; drawBrain();
+});
+
+// ======================================================================
+// Ergebnisse
+// ======================================================================
+let tab = "neurons", rasterRows = [];
+function deltaCell(i, cur) {
+  if (!prevRes) return "";
+  const d = cur - prevRes.rates[i];
+  if (Math.abs(d) < 0.05) return `<td class="num muted">±0</td>`;
+  return `<td class="num ${d > 0 ? "delta-up" : "delta-down"}">${d > 0 ? "+" : "−"}${fmt1.format(Math.abs(d))}</td>`;
+}
+function tags(i) {
+  let t = "";
+  if (lastRes.stimSet.has(i)) t += `<span class="tag stim">gereizt</span>`;
+  if (lastRes.silenceSet.has(i)) t += `<span class="tag silence">stumm</span>`;
+  return t;
+}
+function renderResults() {
+  const r = lastRes, p = r.params;
+  $("#resultsCard").hidden = false;
+  $("#summary").innerHTML = `
+    <div class="kpi"><b>${fmt.format(r.stimSet.size)}</b><span>gereizte Neuronen</span></div>
+    <div class="kpi"><b>${fmt.format(r.active)}</b><span>weitere Neuronen feuerten</span></div>
+    <div class="kpi"><b>${fmt.format(r.total)}</b><span>Spikes insgesamt</span></div>
+    <div class="kpi"><b>${fmt.format(p.T)} ms</b><span>${p.trials} Durchlauf${p.trials > 1 ? "e" : ""}</span></div>`;
+  // Beobachtete
+  if (r.watch.length) {
+    const rows = [];
+    for (const g of r.watch) for (const i of g.idx) rows.push([g.name, i]);
+    const mx = Math.max(1, ...rows.map(([, i]) => r.rates[i]));
+    $("#watchOut").innerHTML = `<h3 style="margin-bottom:6px">Beobachtete Neuronen</h3><div class="table-wrap"><table>
+      <thead><tr><th>Gruppe</th><th>Neuron</th><th class="num">Rate (Hz)</th>${prevRes ? '<th class="num">Δ</th>' : ""}</tr></thead><tbody>
+      ${rows.slice(0, 200).map(([g, i]) => `<tr><td>${esc(g)}</td><td><button class="link" data-card="${i}">${esc(displayName(i))}</button> <span class="muted">${sideShort(i)}</span>${tags(i)}</td>
+      <td class="num rbar"><i style="width:${(r.rates[i] / mx * 75).toFixed(1)}%; background:var(--watch)"></i><span>${fmt1.format(r.rates[i])}</span></td>${deltaCell(i, r.rates[i])}</tr>`).join("")}
+      </tbody></table></div>`;
+  } else $("#watchOut").innerHTML = "";
+  renderTop(); drawRaster();
+}
+function renderTop() {
+  const r = lastRes, el = $("#topOut");
+  if (tab === "neurons") {
+    const idx = [];
+    for (let i = 0; i < D.N; i++) if (r.rates[i] > 0 && !r.stimSet.has(i)) idx.push(i);
+    idx.sort((a, b) => r.rates[b] - r.rates[a]);
+    if (!idx.length) { el.innerHTML = `<p class="empty">Außer den gereizten Neuronen hat nichts gefeuert. Probiere eine höhere Reizfrequenz oder mehr Neuronen.</p>`; return; }
+    const mx = r.rates[idx[0]];
+    el.innerHTML = `<table><thead><tr><th>Neuron</th><th>Klasse</th><th>Transmitter</th><th class="num">Rate (Hz)</th>${prevRes ? '<th class="num">Δ</th>' : ""}</tr></thead><tbody>
+      ${idx.slice(0, 25).map((i) => `<tr><td><button class="link" data-card="${i}">${esc(displayName(i))}</button> <span class="muted">${sideShort(i)}</span>${tags(i)}</td>
+        <td>${esc(SC_NAME[D.scName(i)] || "")}</td><td>${esc(NT_NAME[D.ntName(i)] || "")}</td>
+        <td class="num rbar"><i style="width:${(r.rates[i] / mx * 75).toFixed(1)}%"></i><span>${fmt1.format(r.rates[i])}</span></td>${deltaCell(i, r.rates[i])}</tr>`).join("")}
+      </tbody></table>${idx.length > 25 ? `<p class="muted" style="font-size:13px;margin-top:6px">… und ${fmt.format(idx.length - 25)} weitere (alle in der CSV).</p>` : ""}`;
+  } else {
+    const key = tab === "types" ? "type" : "sc";
+    const agg = new Map();
+    for (let i = 0; i < D.N; i++) {
+      if (r.rates[i] <= 0 || r.stimSet.has(i)) continue;
+      const k = D[key][i]; const a = agg.get(k) || { n: 0, sum: 0, mx: 0, total: 0 };
+      a.n++; a.sum += r.rates[i]; a.mx = Math.max(a.mx, r.rates[i]); agg.set(k, a);
+    }
+    const sizes = new Map(); for (let i = 0; i < D.N; i++) { const k = D[key][i]; if (agg.has(k)) sizes.set(k, (sizes.get(k) || 0) + 1); }
+    const rows = [...agg.entries()].filter(([k]) => tab !== "types" || D.dict.type[k]).sort((a, b) => b[1].sum - a[1].sum);
+    if (!rows.length) { el.innerHTML = `<p class="empty">Keine aktiven ${tab === "types" ? "Zelltypen" : "Klassen"}.</p>`; return; }
+    const mx = rows[0][1].sum;
+    const nm = (k) => tab === "types" ? D.dict.type[k] : (SC_NAME[D.dict.sc[k]] || D.dict.sc[k]);
+    el.innerHTML = `<table><thead><tr><th>${tab === "types" ? "Zelltyp" : "Klasse"}</th><th class="num">aktiv</th><th class="num">Ø Rate (Hz)</th><th class="num">max (Hz)</th><th class="num">Spikes/s gesamt</th></tr></thead><tbody>
+      ${rows.slice(0, 25).map(([k, a]) => `<tr><td>${tab === "types" ? `<button class="link" data-type="${k}">${esc(nm(k))}</button>` : esc(nm(k))}</td><td class="num">${a.n} / ${sizes.get(k)}</td><td class="num">${fmt1.format(a.sum / a.n)}</td><td class="num">${fmt1.format(a.mx)}</td>
+        <td class="num rbar"><i style="width:${(a.sum / mx * 75).toFixed(1)}%"></i><span>${fmt.format(Math.round(a.sum))}</span></td></tr>`).join("")}
+      </tbody></table>`;
+  }
+}
+document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
+  tab = b.dataset.tab; document.querySelectorAll("[data-tab]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderTop();
+}));
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-card]"); if (c) { openCard(+c.dataset.card); return; }
+  const t = e.target.closest("[data-type]");
+  if (t) { $("#search").value = D.dict.type[+t.dataset.type]; renderSearch(); $("#search").scrollIntoView({ behavior: "smooth", block: "center" }); }
+});
+
+function drawRaster() {
+  const cv = $("#raster"), r = lastRes;
+  const rect = cv.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(rect.width * pr); cv.height = Math.round(rect.height * pr);
+  const c = cv.getContext("2d"); c.setTransform(pr, 0, 0, pr, 0, 0);
+  const w = rect.width, h = rect.height;
+  const cs = getComputedStyle(document.documentElement);
+  const fg = cs.getPropertyValue("--fg").trim(), muted = cs.getPropertyValue("--muted").trim(), line = cs.getPropertyValue("--line").trim();
+  const colStim = cs.getPropertyValue("--stim").trim(), colWatch = cs.getPropertyValue("--watch").trim(), colAcc = cs.getPropertyValue("--accent").trim();
+  // Zeilen: beobachtete, dann aktivste nicht gereizte, dann ein paar gereizte
+  const watchIdx = [...new Set(r.watch.flatMap((g) => g.idx))].slice(0, 12);
+  const used = new Set(watchIdx);
+  const others = []; for (let i = 0; i < D.N; i++) if (r.rates[i] > 0 && !used.has(i) && !r.stimSet.has(i)) others.push(i);
+  others.sort((a, b) => r.rates[b] - r.rates[a]);
+  const stimRows = [...r.stimSet].slice(0, 6);
+  const maxRows = Math.max(8, Math.floor((h - 26) / 9));
+  rasterRows = [...stimRows, ...watchIdx, ...others].slice(0, maxRows);
+  const rowOf = new Map(rasterRows.map((i, k) => [i, k]));
+  const L = Math.min(120, w * 0.3), top = 4, rh = (h - 24 - top) / Math.max(1, rasterRows.length), T = r.params.T;
+  c.clearRect(0, 0, w, h);
+  c.font = `${Math.min(11, rh * 0.95)}px ${cs.getPropertyValue("--font-body")}`; c.textBaseline = "middle";
+  rasterRows.forEach((i, k) => {
+    const y = top + k * rh + rh / 2;
+    c.fillStyle = r.stimSet.has(i) ? colStim : used.has(i) ? colWatch : muted;
+    if (rh >= 7) c.fillText((displayName(i) + " " + sideShort(i)).slice(0, 18), 4, y);
+  });
+  c.strokeStyle = line; c.beginPath(); c.moveTo(L, top); c.lineTo(L, h - 22); c.lineTo(w - 6, h - 22); c.stroke();
+  const I = r.rasterI, TT = r.rasterT;
+  for (let k = 0; k < I.length; k++) {
+    const row = rowOf.get(I[k]); if (row === undefined) continue;
+    const i = I[k];
+    c.fillStyle = r.stimSet.has(i) ? colStim : used.has(i) ? colWatch : colAcc;
+    c.fillRect(L + (TT[k] / T) * (w - L - 8), top + row * rh + rh * 0.12, 1.2, Math.max(1, rh * 0.76));
+  }
+  c.fillStyle = muted; c.textBaseline = "alphabetic";
+  for (let t = 0; t <= T; t += T / 4) { const x = L + (t / T) * (w - L - 8); c.fillText(fmt.format(t) + " ms", Math.min(x, w - 50), h - 6); }
+  cv.onclick = (e) => {
+    const rr = cv.getBoundingClientRect(), k = Math.floor((e.clientY - rr.top - top) / rh);
+    if (k >= 0 && k < rasterRows.length) openCard(rasterRows[k]);
+  };
+}
+window.addEventListener("resize", () => { if (lastRes) drawRaster(); });
+
+$("#csvBtn").addEventListener("click", () => {
+  const r = lastRes; if (!r) return;
+  const rows = ["root_id,name,side,super_class,nt,rate_hz,stimulated,silenced"];
+  for (let i = 0; i < D.N; i++) if (r.rates[i] > 0 || r.stimSet.has(i) || r.silenceSet.has(i))
+    rows.push([D.ids[i], JSON.stringify(displayName(i)), D.sideName(i), D.scName(i), D.ntName(i), r.rates[i].toFixed(2), r.stimSet.has(i) ? 1 : 0, r.silenceSet.has(i) ? 1 : 0].join(","));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv" }));
+  a.download = "fliegenhirn-experiment.csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+// ======================================================================
+// Steckbrief eines Neurons
+// ======================================================================
+function openCard(i) {
+  inputs();
+  const outs = [], ins = [];
+  for (let e = D.offsets[i]; e < D.offsets[i + 1]; e++) outs.push([D.post[e], D.syn[e]]);
+  for (let e = D.inOff[i]; e < D.inOff[i + 1]; e++) ins.push([D.inPre[e], D.inSyn[e]]);
+  outs.sort((a, b) => b[1] - a[1]); ins.sort((a, b) => b[1] - a[1]);
+  const sum = (a) => a.reduce((s, x) => s + x[1], 0);
+  const li = (arr) => arr.slice(0, 10).map(([j, s]) => `<li><button data-card="${j}">${esc(displayName(j))} ${sideShort(j)}</button> <small>· ${s} Syn. · ${esc(NT_NAME[D.ntName(j)] || "")}</small></li>`).join("") || "<li class='muted'>keine</li>";
+  const rate = lastRes ? `<div><span>Rate im letzten Lauf</span>${fmt1.format(lastRes.rates[i])} Hz</div>` : "";
+  $("#cardBody").innerHTML = `
+    <div class="dlg-head"><div><h2>${esc(displayName(i))} <span class="muted" style="font-weight:500">${sideShort(i)}</span></h2>
+      <div class="mono muted">${D.ids[i]}</div></div>
+      <button class="btn" data-close aria-label="schließen">×</button></div>
+    ${D.label[i] ? `<p>${esc(D.label[i])}</p>` : ""}
+    <div class="facts">
+      <div><span>Hauptklasse</span>${esc(SC_NAME[D.scName(i)] || "–")}</div>
+      <div><span>Klasse</span>${esc(D.dict.cls[D.cls[i]] || "–")}</div>
+      <div><span>Transmitter</span>${esc(NT_NAME[D.ntName(i)] || "–")}</div>
+      <div><span>Hirnregion</span>${esc(D.dict.group[D.group[i]] || "–")}</div>
+      <div><span>Seite</span>${esc(D.sideName(i) || "–")}</div>
+      ${rate}
+    </div>
+    <div class="partners">
+      <div><h3>Bekommt Eingang von (${fmt.format(ins.length)} Neuronen, ${fmt.format(sum(ins))} Syn.)</h3><ol>${li(ins)}</ol></div>
+      <div><h3>Sendet an (${fmt.format(outs.length)} Neuronen, ${fmt.format(sum(outs))} Syn.)</h3><ol>${li(outs)}</ol></div>
+    </div>
+    <div class="dlg-acts">
+      <button class="mini stim" data-cadd="stim">Reizen</button>
+      <button class="mini silence" data-cadd="silence">Stummschalten</button>
+      <button class="mini watch" data-cadd="watch">Beobachten</button>
+      ${D.typeName(i) ? `<button class="mini" data-cadd="type">ganzen Typ ${esc(D.typeName(i))} suchen</button>` : ""}
+      <a class="mini" style="text-decoration:none; padding:3px 8px; border:1px solid var(--line); border-radius:7px; font-size:12px; font-weight:600" href="https://codex.flywire.ai/app/cell_details?root_id=${D.ids[i]}" target="_blank" rel="noopener">In Codex öffnen ↗</a>
+    </div>`;
+  const dlg = $("#cardDlg");
+  dlg.dataset.idx = i;
+  if (!dlg.open) dlg.showModal();
+}
+$("#cardDlg").addEventListener("click", (e) => {
+  const dlg = $("#cardDlg");
+  if (e.target === dlg || e.target.closest("[data-close]")) { dlg.close(); return; }
+  const a = e.target.closest("[data-cadd]"); if (!a) return;
+  const i = +dlg.dataset.idx;
+  if (a.dataset.cadd === "type") { dlg.close(); $("#search").value = D.typeName(i); renderSearch(); $("#search").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  addGroup(a.dataset.cadd, displayName(i) + (sideShort(i) ? " " + sideShort(i) : ""), [i]);
+  a.textContent = "✓ hinzugefügt";
+});
+
+// ======================================================================
+// Fertige Experimente
+// ======================================================================
+const byLabel = (re) => { const o = []; for (let i = 0; i < D.N; i++) if (re.test(D.label[i])) o.push(i); return o; };
+const byType = (t) => { const k = D.dict.type.indexOf(t), o = []; for (let i = 0; i < D.N; i++) if (D.type[i] === k) o.push(i); return o; };
+const SUGAR = /Sugar Gustatory Receptor Neuron/, BITTER = /Bitter Gustatory Receptor Neuron|labellar bitter gustatory/i, MN9 = /\bMN9\b/;
+const PRESETS = [
+  { name: "Zucker schmecken → Rüssel ausfahren", desc: "Reizt die 23 Zucker-Geschmacksneuronen. Feuert der Rüssel-Motorneuron MN9?",
+    make: () => ({ stim: [["Zucker-Geschmacksneuronen", byLabel(SUGAR), 100]], watch: [["MN9 (Rüssel-Motorneuron)", byLabel(MN9)]] }) },
+  { name: "Bitter bremst Zucker", desc: "Zucker und Bitterstoff gleichzeitig. Bitter-Neuronen hemmen den Fressreflex.",
+    make: () => ({ stim: [["Zucker-Geschmacksneuronen", byLabel(SUGAR), 100], ["Bitter-Geschmacksneuronen", byLabel(BITTER), 100]], watch: [["MN9 (Rüssel-Motorneuron)", byLabel(MN9)]] }) },
+  { name: "Knockout: „Roundup“ stummschalten", desc: "Zucker wie oben, aber das Zwischenneuron Roundup darf nicht feuern. Was bleibt von MN9?",
+    make: () => ({ stim: [["Zucker-Geschmacksneuronen", byLabel(SUGAR), 100]], silence: [["Roundup", byLabel(/\bRoundup\b/)]], watch: [["MN9 (Rüssel-Motorneuron)", byLabel(MN9)], ["Roundup", byLabel(/\bRoundup\b/)]] }) },
+  { name: "Etwas fliegt auf mich zu → Fluchtneuron", desc: "Reizt die Looming-Detektoren LC4 und beobachtet die Riesenfaser DNp01, die den Fluchtsprung auslöst.",
+    make: () => ({ stim: [["LC4 (Looming-Detektoren)", byType("LC4"), 100]], watch: [["DNp01 (Riesenfaser)", byType("DNp01")]] }) },
+];
+function loadPreset(pr) {
+  const m = pr.make();
+  state.stim = []; state.silence = []; state.watch = [];
+  for (const [n, idx, rate] of m.stim || []) addGroupQuiet("stim", n, idx, rate);
+  for (const [n, idx] of m.silence || []) addGroupQuiet("silence", n, idx);
+  for (const [n, idx] of m.watch || []) addGroupQuiet("watch", n, idx);
+  renderLists(); renderBrainBase(); drawBrain();
+}
+function addGroupQuiet(kind, name, idx, rate) {
+  if (!idx.length) return; const g = { id: groupSeq++, name, idx: Array.from(idx) }; if (kind === "stim") g.rate = rate || 100; state[kind].push(g);
+}
+function renderPresets() {
+  $("#presets").innerHTML = PRESETS.map((p, k) => `<button class="preset" data-preset="${k}"><b>${esc(p.name)}</b><span>${esc(p.desc)}</span></button>`).join("");
+  $("#presets").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-preset]"); if (!b || !D.N) return;
+    loadPreset(PRESETS[+b.dataset.preset]);
+    run();
+  });
+}
+
+// ======================================================================
+// Speichern, Teilen
+// ======================================================================
+function snapshot() {
+  return { v: D.meta.version, p: readParams(), g: ["stim", "silence", "watch"].flatMap((k) => state[k].map((g) => ({ k, n: g.name, r: g.rate, i: g.idx }))) };
+}
+function restore(s) {
+  state.stim = []; state.silence = []; state.watch = [];
+  for (const g of s.g || []) if (state[g.k]) addGroupQuiet(g.k, g.n, g.i.filter((i) => i >= 0 && i < D.N), g.r);
+  if (s.p) { $("#pT").value = s.p.T; $("#pTrials").value = s.p.trials; $("#pW").value = s.p.wSyn; $("#pMod").value = s.p.modSign; $("#pSeed").value = s.p.seed; }
+  renderLists(); renderBrainBase(); drawBrain();
+}
+const STORE = "fliegenhirn-experimente";
+function loadSaved() { try { return JSON.parse(localStorage.getItem(STORE) || "[]"); } catch { return []; } }
+function storeSaved(list) { try { localStorage.setItem(STORE, JSON.stringify(list)); return true; } catch { return false; } }
+function renderSaved() {
+  const list = loadSaved();
+  $("#saved").innerHTML = list.length ? `<h3>Gespeichert</h3>` + list.map((s, k) => `<div class="saved-row"><span>${esc(s.name)}</span>
+    <button class="mini" data-load="${k}">Laden</button><button class="mini silence" data-del="${k}">Löschen</button></div>`).join("") : "";
+}
+$("#saved").addEventListener("click", (e) => {
+  const l = e.target.closest("[data-load]"), d = e.target.closest("[data-del]"), list = loadSaved();
+  if (l) restore(list[+l.dataset.load].s);
+  if (d) { list.splice(+d.dataset.del, 1); storeSaved(list); renderSaved(); }
+});
+$("#saveBtn").addEventListener("click", () => {
+  if (!state.stim.length && !state.watch.length) { $("#runStatus").textContent = "Es gibt noch nichts zu speichern."; return; }
+  const name = prompt("Name für dieses Experiment:", state.stim.map((g) => g.name).join(" + ").slice(0, 60));
+  if (!name) return;
+  const list = loadSaved(); list.unshift({ name, s: snapshot() });
+  $("#runStatus").textContent = storeSaved(list.slice(0, 30)) ? "Gespeichert (nur in diesem Browser)." : "Speichern ist in diesem Browser nicht möglich.";
+  renderSaved();
+});
+function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function unb64u(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/")))); }
+$("#shareBtn").addEventListener("click", async () => {
+  const url = location.href.split("#")[0] + "#x=" + b64u(JSON.stringify(snapshot()));
+  try { await navigator.clipboard.writeText(url); $("#runStatus").textContent = "Link kopiert – wer ihn öffnet, bekommt genau dieses Experiment."; }
+  catch { history.replaceState(null, "", url); $("#runStatus").textContent = "Link steht jetzt in der Adresszeile."; }
+});
+$("#clearBtn").addEventListener("click", () => { state.stim = []; state.silence = []; state.watch = []; highlight = null; renderLists(); renderBrainBase(); drawBrain(); });
+
+// ======================================================================
+// Start
+// ======================================================================
+renderLists(); renderPresets(); renderSaved();
+loadData().then(() => {
+  $("#loading").hidden = true; $("#search").disabled = false;
+  resize(); renderLegend(); startWorker();
+  const m = location.hash.match(/#x=([\w-]+)/);
+  if (m) { try { restore(JSON.parse(unb64u(m[1]))); } catch (e) { console.warn(e); } }
+}).catch((err) => {
+  console.error(err);
+  $("#loadingText").innerHTML = location.protocol === "file:"
+    ? "Die Seite muss über einen Webserver laufen.<br>Im Repo-Ordner: <code>python3 -m http.server</code> und dann <code>localhost:8000/fliege/</code> öffnen."
+    : "Die Daten konnten nicht geladen werden: " + esc(err.message);
+});
+</script>
+</body>
+</html>
