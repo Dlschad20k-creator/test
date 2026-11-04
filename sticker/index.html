@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff7ec">
+<title>Stickerwerk</title>
+<meta name="description" content="Foto machen, automatisch freistellen, als Sticker für WhatsApp speichern.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+  /* Layout: ein Stickerbogen. Startseite mit zwei großen Knöpfen und deiner Sammlung; Editor mit quadratischer Vorschau und Werkzeugleisten darunter. */
+  :root {
+    --paper: #fff7ec;
+    --sheet: #ffffff;
+    --ink: #1f1a2e;
+    --muted: #6b6478;
+    --line: #eadfce;
+    --accent: #ff4f7b;
+    --accent-ink: #ffffff;
+    --sun: #ffd23f;
+    --ok: #13a36b;
+    --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--paper); color: var(--ink);
+    font-family: var(--font-body); font-size: 17px; line-height: 1.5;
+    background-image: radial-gradient(circle at 1px 1px, rgba(31, 26, 46, .07) 1px, transparent 0);
+    background-size: 22px 22px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap {
+    max-width: 560px; margin: 0 auto;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 22px;
+  }
+  h1, h2 { font-family: var(--font-display); margin: 0; line-height: 1.05; text-wrap: balance; }
+  h1 { font-size: 44px; font-weight: 700; letter-spacing: -.01em; }
+  h1 span { display: inline-block; background: var(--sun); padding: 0 10px; border-radius: 12px; transform: rotate(-2deg); }
+  h2 { font-size: 22px; font-weight: 600; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+
+  button, .btn {
+    font: inherit; font-weight: 700; cursor: pointer; border: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 16px; padding: 12px 18px; color: var(--ink); background: var(--sheet);
+    box-shadow: inset 0 0 0 2px var(--line);
+    text-decoration: none; min-height: 48px;
+  }
+  button:focus-visible, .btn:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+  button:active, .btn:active { transform: scale(.98); }
+  button:disabled { opacity: .45; cursor: default; }
+  .primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 0 #c92d58; }
+  .dark { background: var(--ink); color: #fff; box-shadow: none; }
+  .btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .btn { position: relative; }
+
+  /* Startseite */
+  .hero { display: grid; gap: 14px; }
+  .big-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .big-actions .btn { flex-direction: column; min-height: 118px; font-family: var(--font-display); font-size: 20px; font-weight: 600; border-radius: 22px; }
+  .big-actions svg { width: 34px; height: 34px; }
+  .quality { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); flex-wrap: wrap; }
+  .quality label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .sheet { background: var(--sheet); border-radius: 22px; padding: 18px; box-shadow: 0 1px 0 var(--line), 0 10px 30px rgba(31, 26, 46, .06); display: grid; gap: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+  .grid button { padding: 6px; aspect-ratio: 1; min-height: 0; border-radius: 16px; background: transparent;
+    background-image: conic-gradient(#f3ece2 25%, #fff 0 50%, #f3ece2 0 75%, #fff 0); background-size: 16px 16px; }
+  .grid img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .empty { color: var(--muted); font-size: 15px; }
+
+  /* Editor */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .stage {
+    position: relative; width: 100%; aspect-ratio: 1; max-width: 100%;
+    border-radius: 24px; overflow: hidden;
+    background-image: conic-gradient(#efe6d9 25%, #fffaf3 0 50%, #efe6d9 0 75%, #fffaf3 0);
+    background-size: 24px 24px;
+    box-shadow: inset 0 0 0 2px var(--line);
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+  .busy {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center;
+    background: rgba(255, 247, 236, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    font-family: var(--font-display); font-weight: 600; font-size: 19px; padding: 20px;
+  }
+  .bar { width: 200px; max-width: 70vw; height: 10px; border-radius: 99px; background: rgba(31,26,46,.12); overflow: hidden; justify-self: center; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .2s; }
+  .busy small { font-family: var(--font-body); font-weight: 400; font-size: 14px; color: var(--muted); }
+
+  .tools { display: grid; gap: 14px; }
+  .row { display: grid; gap: 8px; }
+  .row > span { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seg button { padding: 9px 14px; min-height: 42px; font-size: 15px; border-radius: 14px; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+  .swatch { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(31,26,46,.25); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="text"] {
+    font: inherit; font-size: 17px; width: 100%; padding: 12px 14px; border-radius: 14px;
+    border: 2px solid var(--line); background: var(--sheet); color: var(--ink);
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .actions .wide { grid-column: 1 / -1; }
+  .hint { font-size: 14px; color: var(--muted); }
+
+  /* Hinweis-Fenster */
+  .modal { position: fixed; inset: 0; z-index: 10; background: rgba(31, 26, 46, .45); display: grid; align-items: end; justify-items: center; padding: 16px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  .modal .sheet { width: 100%; max-width: 520px; max-height: 85vh; overflow: auto; }
+  .modal ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  .modal h3 { margin: 6px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+  .modal img { width: 140px; height: 140px; object-fit: contain; justify-self: center;
+    background-image: conic-gradient(#f3ece2 25%, #fff 0 50%, #f3ece2 0 75%, #fff 0); background-size: 16px 16px; border-radius: 16px; }
+
+  .toast {
+    position: fixed; z-index: 20; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    max-width: calc(100% - 32px); width: max-content;
+    background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px; font-size: 15px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- Startseite -->
+<main class="wrap" id="home">
+  <section class="hero">
+    <h1>Sticker<span>werk</span></h1>
+    <p class="muted">Mach ein Foto von irgendwas: Haustier, Freund, Essen, Schuh. Der Hintergrund verschwindet automatisch, und du bekommst einen fertigen Sticker mit weißem Rand.</p>
+  </section>
+
+  <div class="big-actions">
+    <label class="btn primary" for="camInput">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Foto machen
+      <input type="file" id="camInput" accept="image/*" capture="environment">
+    </label>
+    <label class="btn" for="galInput">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+      Aus Galerie
+      <input type="file" id="galInput" accept="image/*">
+    </label>
+  </div>
+
+  <div class="quality" role="radiogroup" aria-label="Qualität">
+    <span>Ausschneiden:</span>
+    <label><input type="radio" name="q" value="medium" id="qBest" checked> Beste Qualität (88 MB)</label>
+    <label><input type="radio" name="q" value="small" id="qFast"> Schnell (44 MB)</label>
+  </div>
+  <p class="hint">Das Ausschneide-Modell wird beim ersten Mal geladen und danach vom Browser gemerkt. Deine Fotos bleiben auf deinem Gerät.</p>
+
+  <section class="sheet">
+    <div class="topbar">
+      <h2>Meine Sticker</h2>
+      <button type="button" id="helpBtn">WhatsApp-Hilfe</button>
+    </div>
+    <div class="grid" id="mine"></div>
+    <p class="empty" id="mineEmpty">Noch keine Sticker. Mach dein erstes Foto.</p>
+  </section>
+</main>
+
+<!-- Editor -->
+<main class="wrap" id="editor" hidden>
+  <div class="topbar">
+    <button type="button" id="back">← Zurück</button>
+    <button type="button" id="undo" disabled>Rückgängig</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="view" aria-label="Sticker-Vorschau"></canvas>
+    <div class="busy" id="busy" hidden>
+      <div id="busyText">Schneide aus …</div>
+      <div class="bar"><i id="busyBar"></i></div>
+      <small id="busySub"></small>
+    </div>
+  </div>
+
+  <div class="tools">
+    <div class="row">
+      <span>Werkzeug</span>
+      <div class="seg" id="toolSeg">
+        <button type="button" data-tool="view" aria-pressed="true">Vorschau</button>
+        <button type="button" data-tool="erase" aria-pressed="false">Radieren</button>
+        <button type="button" data-tool="restore" aria-pressed="false">Zurückholen</button>
+        <button type="button" data-tool="lasso" aria-pressed="false">Selber ausschneiden</button>
+      </div>
+      <p class="hint" id="toolHint">So sieht dein Sticker aus. Mit den Werkzeugen kannst du nachbessern.</p>
+    </div>
+
+    <div class="row" id="brushRow" hidden>
+      <span>Pinselgröße</span>
+      <input type="range" id="brush" min="8" max="90" value="34" aria-label="Pinselgröße">
+    </div>
+
+    <div class="row">
+      <span>Ausschnitt</span>
+      <div class="seg">
+        <button type="button" id="autoBtn">Automatisch neu</button>
+        <button type="button" id="wholeBtn">Ganzes Foto</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <span>Rand</span>
+      <div class="seg" id="outlineSeg">
+        <button type="button" data-outline="0" aria-pressed="false">Ohne</button>
+        <button type="button" data-outline="9" aria-pressed="false">Dünn</button>
+        <button type="button" data-outline="16" aria-pressed="true">Dick</button>
+      </div>
+      <div class="seg" id="outlineColorSeg">
+        <button type="button" data-color="#ffffff" aria-pressed="true"><i class="swatch" style="background:#fff"></i>Weiß</button>
+        <button type="button" data-color="#1f1a2e" aria-pressed="false"><i class="swatch" style="background:#1f1a2e"></i>Schwarz</button>
+        <button type="button" data-color="#ffd23f" aria-pressed="false"><i class="swatch" style="background:#ffd23f"></i>Gelb</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <span>Text</span>
+      <input type="text" id="text" maxlength="28" placeholder="z. B. LOL, Hunger!, Gute Nacht" autocomplete="off">
+      <div class="seg" id="textPosSeg">
+        <button type="button" data-pos="bottom" aria-pressed="true">Unten</button>
+        <button type="button" data-pos="top" aria-pressed="false">Oben</button>
+      </div>
+      <div class="seg" id="textColorSeg">
+        <button type="button" data-tcolor="#ffffff" aria-pressed="true"><i class="swatch" style="background:#fff"></i>Weiß</button>
+        <button type="button" data-tcolor="#ffd23f" aria-pressed="false"><i class="swatch" style="background:#ffd23f"></i>Gelb</button>
+        <button type="button" data-tcolor="#ff4f7b" aria-pressed="false"><i class="swatch" style="background:#ff4f7b"></i>Pink</button>
+        <button type="button" data-tcolor="#1f1a2e" aria-pressed="false"><i class="swatch" style="background:#1f1a2e"></i>Schwarz</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <span>Schatten</span>
+      <div class="seg" id="shadowSeg">
+        <button type="button" data-shadow="1" aria-pressed="true">An</button>
+        <button type="button" data-shadow="0" aria-pressed="false">Aus</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="primary wide" id="sendBtn">An WhatsApp senden</button>
+    <button type="button" id="saveBtn">In Sammlung</button>
+    <button type="button" id="dlBtn">Bild speichern</button>
+  </div>
+</main>
+
+<!-- Aktionen für gespeicherte Sticker -->
+<div class="modal" id="stickerModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="smTitle">
+    <h2 id="smTitle">Dein Sticker</h2>
+    <img id="smImg" alt="Gespeicherter Sticker">
+    <div class="actions">
+      <button type="button" class="primary wide" id="smSend">An WhatsApp senden</button>
+      <button type="button" id="smDl">Bild speichern</button>
+      <button type="button" id="smDel">Löschen</button>
+      <button type="button" class="wide" id="smClose">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- WhatsApp-Hilfe -->
+<div class="modal" id="helpModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">So kommt dein Sticker in WhatsApp</h2>
+    <h3>Android</h3>
+    <ol>
+      <li>Tippe auf <b>An WhatsApp senden</b> und wähle WhatsApp.</li>
+      <li>Schick ihn an einen Chat, zum Beispiel an dich selbst.</li>
+      <li>Tippe im Chat auf den Sticker und dann auf <b>Zu Favoriten hinzufügen</b>.</li>
+      <li>Ab jetzt findest du ihn bei deinen Stickern unter dem Stern.</li>
+    </ol>
+    <h3>iPhone</h3>
+    <ol>
+      <li>Tippe auf <b>Bild speichern</b> und dann auf <b>Bild sichern</b>.</li>
+      <li>Öffne in WhatsApp einen Chat, tippe auf das Sticker-Symbol und dann auf <b>Sticker erstellen</b>.</li>
+      <li>Wähle das gespeicherte Bild und tippe auf <b>Senden</b>. WhatsApp merkt sich den Sticker.</li>
+    </ol>
+    <p class="hint">Ganze Sticker-Pakete direkt hinzufügen geht nur mit einer eigenen App. Eine Webseite darf das nicht.</p>
+    <button type="button" class="dark" id="helpClose">Verstanden</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const view = $('view'), vctx = view.getContext('2d');
+  const OUT = 512;                  // WhatsApp-Stickergröße
+  const MAX_SRC = 1280;             // Fotos werden vorher verkleinert
+
+  // ---------- Zustand ----------
+  let src = null;                   // Canvas mit dem Foto
+  let mask = null, mctx = null;     // Canvas, Alpha = sichtbar
+  let maskDirty = true, bboxCache = null;
+  const undoStack = [];
+  const opt = { tool: 'view', outline: 16, outlineColor: '#ffffff', text: '', textPos: 'bottom', textColor: '#ffffff', shadow: true };
+  let quality = 'medium';
+  try { quality = localStorage.getItem('sticker:q') || 'medium'; } catch (e) {}
+  (quality === 'small' ? $('qFast') : $('qBest')).checked = true;
+  document.querySelectorAll('input[name="q"]').forEach(r => r.addEventListener('change', () => {
+    quality = r.value; try { localStorage.setItem('sticker:q', quality); } catch (e) {}
+  }));
+
+  function toast(text, ms = 3500) {
+    const t = $('toast'); t.textContent = text; t.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, ms);
+  }
+
+  // ---------- Foto laden ----------
+  function loadImage(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); res(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Bild konnte nicht gelesen werden')); };
+      img.src = url;
+    });
+  }
+
+  async function onFile(file) {
+    if (!file) return;
+    let img;
+    try { img = await loadImage(file); } catch (e) { toast('Dieses Bild kann der Browser nicht öffnen. Versuch ein JPG oder PNG.'); return; }
+    const k = Math.min(1, MAX_SRC / Math.max(img.naturalWidth, img.naturalHeight));
+    src = document.createElement('canvas');
+    src.width = Math.round(img.naturalWidth * k); src.height = Math.round(img.naturalHeight * k);
+    src.getContext('2d').drawImage(img, 0, 0, src.width, src.height);
+    mask = document.createElement('canvas');
+    mask.width = src.width; mask.height = src.height;
+    mctx = mask.getContext('2d');
+    mctx.fillStyle = '#fff'; mctx.fillRect(0, 0, mask.width, mask.height);
+    maskDirty = true; undoStack.length = 0; $('undo').disabled = true;
+    $('text').value = ''; opt.text = '';
+    showEditor();
+    setTool('view');
+    await autoCut();
+  }
+  $('camInput').addEventListener('change', e => { onFile(e.target.files[0]); e.target.value = ''; });
+  $('galInput').addEventListener('change', e => { onFile(e.target.files[0]); e.target.value = ''; });
+
+  // ---------- Automatisch freistellen ----------
+  let lib = null;
+  function busy(on, text, sub, pct) {
+    $('busy').hidden = !on;
+    if (text != null) $('busyText').textContent = text;
+    if (sub != null) $('busySub').textContent = sub;
+    if (pct != null) $('busyBar').style.width = Math.round(pct * 100) + '%';
+  }
+  async function autoCut() {
+    if (!src) return;
+    busy(true, 'Lade Ausschneide-Modell …', 'Nur beim ersten Mal, danach geht es schneller.', 0);
+    drawView();
+    try {
+      if (!lib) lib = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+      const blob = await new Promise(r => src.toBlob(r, 'image/png'));
+      const seen = {};
+      const result = await lib.removeBackground(blob, {
+        model: quality,
+        output: { format: 'image/png' },
+        progress: (key, cur, total) => {
+          if (/fetch/.test(key) && total) {
+            seen[key] = [cur, total];
+            let c = 0, t = 0; for (const k in seen) { c += seen[k][0]; t += seen[k][1]; }
+            busy(true, 'Lade Ausschneide-Modell …', Math.round(c / 1048576) + ' von ' + Math.round(t / 1048576) + ' MB', c / t);
+          } else if (/compute/.test(key)) {
+            busy(true, 'Schneide aus …', 'Einen Moment, das passiert direkt auf deinem Gerät.', total ? cur / total : 0.9);
+          }
+        },
+      });
+      const cut = await loadImage(result);
+      pushUndo();
+      mctx.clearRect(0, 0, mask.width, mask.height);
+      mctx.drawImage(cut, 0, 0, mask.width, mask.height);
+      cleanMask();
+      busy(false);
+      if (!bbox()) { toast('Ich habe nichts Klares gefunden. Schneide es mit „Selber ausschneiden“ aus.', 5000); setTool('lasso'); }
+    } catch (e) {
+      console.error(e);
+      busy(false);
+      toast('Automatisch hat nicht geklappt. Du kannst es mit „Selber ausschneiden“ machen.', 5000);
+      setTool('lasso');
+    }
+    drawView();
+  }
+  $('autoBtn').addEventListener('click', autoCut);
+  $('wholeBtn').addEventListener('click', () => {
+    if (!src) return;
+    pushUndo();
+    mctx.globalCompositeOperation = 'source-over';
+    mctx.fillStyle = '#fff';
+    mctx.beginPath();
+    const r = Math.min(mask.width, mask.height) * 0.08;
+    mctx.roundRect ? mctx.roundRect(0, 0, mask.width, mask.height, r) : mctx.rect(0, 0, mask.width, mask.height);
+    mctx.clearRect(0, 0, mask.width, mask.height);
+    mctx.fill();
+    maskDirty = true; drawView();
+  });
+
+  // Weiche, aber saubere Kanten: Reste unter 10 % weg, fast Volles ganz voll
+  function cleanMask() {
+    const d = mctx.getImageData(0, 0, mask.width, mask.height);
+    const a = d.data;
+    for (let i = 0; i < a.length; i += 4) {
+      let v = (a[i + 3] / 255 - 0.1) / 0.8;
+      v = v < 0 ? 0 : v > 1 ? 1 : v;
+      a[i] = a[i + 1] = a[i + 2] = 255; a[i + 3] = v * 255;
+    }
+    mctx.putImageData(d, 0, 0);
+    maskDirty = true;
+  }
+
+  // ---------- Rückgängig ----------
+  function pushUndo() {
+    undoStack.push(mctx.getImageData(0, 0, mask.width, mask.height));
+    if (undoStack.length > 15) undoStack.shift();
+    $('undo').disabled = false;
+  }
+  $('undo').addEventListener('click', () => {
+    const d = undoStack.pop(); if (!d) return;
+    mctx.putImageData(d, 0, 0); maskDirty = true; drawView();
+    $('undo').disabled = undoStack.length === 0;
+  });
+
+  // ---------- Begrenzung des Motivs ----------
+  function bbox() {
+    if (!maskDirty && bboxCache !== undefined) return bboxCache;
+    const w = mask.width, h = mask.height, a = mctx.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (a[(y * w + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    maskDirty = false;
+    bboxCache = x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    return bboxCache;
+  }
+
+  // ---------- Sticker zeichnen ----------
+  function renderSticker(size = OUT) {
+    const out = document.createElement('canvas'); out.width = out.height = size;
+    const octx = out.getContext('2d');
+    const bb = bbox();
+    if (!bb) return out;
+    const f = size / 512;
+    const ow = opt.outline * f;
+    const margin = (opt.shadow ? 18 : 12) * f + ow;
+    const inner = size - margin * 2;
+
+    // ausgeschnittenes Motiv
+    const cut = document.createElement('canvas'); cut.width = bb.w; cut.height = bb.h;
+    const cctx = cut.getContext('2d');
+    cctx.drawImage(src, bb.x, bb.y, bb.w, bb.h, 0, 0, bb.w, bb.h);
+    cctx.globalCompositeOperation = 'destination-in';
+    cctx.drawImage(mask, bb.x, bb.y, bb.w, bb.h, 0, 0, bb.w, bb.h);
+
+    // Platz für Text
+    const text = opt.text.trim();
+    const layer = document.createElement('canvas'); layer.width = layer.height = size;
+    const lctx = layer.getContext('2d');
+    let fontPx = 0, textH = 0;
+    if (text) {
+      fontPx = 96 * f;
+      lctx.font = '700 ' + fontPx + 'px Fredoka, "Trebuchet MS", sans-serif';
+      const tw = lctx.measureText(text.toUpperCase()).width;
+      if (tw > inner * 0.96) fontPx *= inner * 0.96 / tw;
+      textH = fontPx * 1.05;
+    }
+    const imgBoxH = inner - (text ? textH * 0.72 : 0);
+    const s = Math.min(inner / bb.w, imgBoxH / bb.h);
+    const iw = bb.w * s, ih = bb.h * s;
+    const ix = (size - iw) / 2;
+    let iy = text && opt.textPos === 'top' ? margin + textH * 0.72 + (imgBoxH - ih) / 2 : margin + (imgBoxH - ih) / 2;
+    lctx.imageSmoothingQuality = 'high';
+    lctx.drawImage(cut, ix, iy, iw, ih);
+
+    if (text) {
+      const ty = opt.textPos === 'top' ? Math.max(margin + textH / 2, iy - textH * 0.1) : Math.min(size - margin - textH / 2, iy + ih + textH * 0.1);
+      lctx.font = '700 ' + fontPx + 'px Fredoka, "Trebuchet MS", sans-serif';
+      lctx.textAlign = 'center'; lctx.textBaseline = 'middle';
+      lctx.lineJoin = 'round';
+      const dark = opt.textColor === '#1f1a2e';
+      lctx.lineWidth = fontPx * 0.2;
+      lctx.strokeStyle = dark ? '#ffffff' : '#1f1a2e';
+      lctx.strokeText(text.toUpperCase(), size / 2, ty);
+      lctx.fillStyle = opt.textColor;
+      lctx.fillText(text.toUpperCase(), size / 2, ty);
+    }
+
+    // Rand: Silhouette rundherum versetzt stempeln, dann Kanten hart machen
+    const comp = document.createElement('canvas'); comp.width = comp.height = size;
+    const kctx = comp.getContext('2d');
+    if (ow > 0) {
+      const sil = document.createElement('canvas'); sil.width = sil.height = size;
+      const sctx = sil.getContext('2d');
+      sctx.drawImage(layer, 0, 0);
+      sctx.globalCompositeOperation = 'source-in';
+      sctx.fillStyle = opt.outlineColor; sctx.fillRect(0, 0, size, size);
+      for (const rr of [ow, ow * 0.66, ow * 0.33]) {
+        const steps = Math.max(16, Math.round(rr * 2.2));
+        for (let i = 0; i < steps; i++) {
+          const a = i / steps * Math.PI * 2;
+          kctx.drawImage(sil, Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+      }
+      const d = kctx.getImageData(0, 0, size, size), p = d.data;
+      for (let i = 3; i < p.length; i += 4) { const v = p[i] * 2.2; p[i] = v > 255 ? 255 : v; }
+      kctx.putImageData(d, 0, 0);
+    }
+    kctx.drawImage(layer, 0, 0);
+
+    if (opt.shadow) {
+      octx.shadowColor = 'rgba(31, 26, 46, .28)';
+      octx.shadowBlur = 10 * f; octx.shadowOffsetY = 4 * f;
+    }
+    octx.drawImage(comp, 0, 0);
+    return out;
+  }
+
+  // ---------- Ansicht ----------
+  let fit = { s: 1, x: 0, y: 0 };
+  function sizeView() {
+    const r = view.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(r.width * dpr));
+    if (view.width !== w) { view.width = view.height = w; }
+  }
+  function drawView() {
+    sizeView();
+    const W = view.width;
+    vctx.clearRect(0, 0, W, W);
+    if (!src) return;
+    if (opt.tool === 'view') {
+      const st = renderSticker(OUT);
+      vctx.imageSmoothingQuality = 'high';
+      vctx.drawImage(st, 0, 0, W, W);
+      return;
+    }
+    // Bearbeiten: Foto blass, Motiv kräftig
+    const s = Math.min(W / src.width, W / src.height) * 0.96;
+    fit = { s, x: (W - src.width * s) / 2, y: (W - src.height * s) / 2 };
+    vctx.globalAlpha = 0.28;
+    vctx.drawImage(src, fit.x, fit.y, src.width * s, src.height * s);
+    vctx.globalAlpha = 1;
+    const tmp = document.createElement('canvas'); tmp.width = src.width; tmp.height = src.height;
+    const t = tmp.getContext('2d');
+    t.drawImage(src, 0, 0); t.globalCompositeOperation = 'destination-in'; t.drawImage(mask, 0, 0);
+    vctx.drawImage(tmp, fit.x, fit.y, src.width * s, src.height * s);
+    if (lasso.length > 1) {
+      vctx.lineWidth = 3 * (view.width / view.clientWidth);
+      vctx.strokeStyle = '#ff4f7b'; vctx.setLineDash([10, 8]);
+      vctx.beginPath();
+      lasso.forEach((p, i) => { const x = fit.x + p.x * s, y = fit.y + p.y * s; i ? vctx.lineTo(x, y) : vctx.moveTo(x, y); });
+      vctx.stroke(); vctx.setLineDash([]);
+    }
+  }
+  addEventListener('resize', () => { if (!$('editor').hidden) drawView(); });
+
+  // ---------- Pinsel und Lasso ----------
+  let drawing = false, last = null, lasso = [];
+  function toSrc(e) {
+    const r = view.getBoundingClientRect(), k = view.width / r.width;
+    return { x: ((e.clientX - r.left) * k - fit.x) / fit.s, y: ((e.clientY - r.top) * k - fit.y) / fit.s };
+  }
+  function brushPx() { return Number($('brush').value) * (view.width / view.clientWidth) / fit.s; }
+  function stroke(a, b) {
+    mctx.save();
+    mctx.globalCompositeOperation = opt.tool === 'erase' ? 'destination-out' : 'source-over';
+    mctx.strokeStyle = '#fff'; mctx.lineCap = mctx.lineJoin = 'round';
+    mctx.lineWidth = brushPx();
+    mctx.beginPath(); mctx.moveTo(a.x, a.y); mctx.lineTo(b.x + 0.01, b.y); mctx.stroke();
+    mctx.restore();
+    maskDirty = true;
+  }
+  view.addEventListener('pointerdown', e => {
+    if (!src || opt.tool === 'view') return;
+    view.setPointerCapture(e.pointerId);
+    drawing = true;
+    const p = toSrc(e);
+    if (opt.tool === 'lasso') { lasso = [p]; }
+    else { pushUndo(); stroke(p, p); last = p; }
+    drawView();
+  });
+  view.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const p = toSrc(e);
+    if (opt.tool === 'lasso') lasso.push(p);
+    else { stroke(last, p); last = p; }
+    drawView();
+  });
+  const end = () => {
+    if (!drawing) return;
+    drawing = false;
+    if (opt.tool === 'lasso') {
+      if (lasso.length > 8) {
+        pushUndo();
+        mctx.clearRect(0, 0, mask.width, mask.height);
+        mctx.fillStyle = '#fff';
+        mctx.beginPath(); lasso.forEach((p, i) => i ? mctx.lineTo(p.x, p.y) : mctx.moveTo(p.x, p.y)); mctx.closePath(); mctx.fill();
+        maskDirty = true;
+        toast('Ausgeschnitten. Mit Radieren und Zurückholen kannst du nachbessern.');
+      }
+      lasso = [];
+    }
+    drawView();
+  };
+  view.addEventListener('pointerup', end); view.addEventListener('pointercancel', end);
+
+  // ---------- Bedienelemente ----------
+  const HINTS = {
+    view: 'So sieht dein Sticker aus. Mit den Werkzeugen kannst du nachbessern.',
+    erase: 'Wisch über Stellen, die weg sollen.',
+    restore: 'Wisch über Stellen, die wieder dazu sollen.',
+    lasso: 'Fahr mit dem Finger einmal um dein Motiv herum.',
+  };
+  function setTool(t) {
+    opt.tool = t;
+    document.querySelectorAll('#toolSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t));
+    $('brushRow').hidden = !(t === 'erase' || t === 'restore');
+    $('toolHint').textContent = HINTS[t];
+    drawView();
+  }
+  $('toolSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTool(b.dataset.tool); });
+
+  function segment(id, key, parse) {
+    $(id).addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const attr = Object.keys(b.dataset)[0];
+      opt[key] = parse(b.dataset[attr]);
+      $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      if (opt.tool !== 'view') setTool('view'); else drawView();
+    });
+  }
+  segment('outlineSeg', 'outline', Number);
+  segment('outlineColorSeg', 'outlineColor', String);
+  segment('textPosSeg', 'textPos', String);
+  segment('textColorSeg', 'textColor', String);
+  segment('shadowSeg', 'shadow', v => v === '1');
+  $('text').addEventListener('input', e => { opt.text = e.target.value; if (opt.tool !== 'view') setTool('view'); else drawView(); });
+
+  // ---------- Export ----------
+  async function exportBlob(canvas) {
+    // WhatsApp: 512 × 512, WebP, unter 100 KB. Geht WebP nicht (iPhone), dann PNG.
+    for (const q of [0.92, 0.85, 0.75, 0.65, 0.5]) {
+      const b = await new Promise(r => canvas.toBlob(r, 'image/webp', q));
+      if (!b || b.type !== 'image/webp') break;
+      if (b.size < 100 * 1024) return b;
+    }
+    return await new Promise(r => canvas.toBlob(r, 'image/png'));
+  }
+  function fileFrom(blob) {
+    const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+    return new File([blob], 'sticker-' + Date.now() + '.' + ext, { type: blob.type });
+  }
+  async function shareBlob(blob) {
+    const file = fileFrom(blob);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return true; }
+      catch (e) { if (e.name === 'AbortError') return true; }
+    }
+    download(blob);
+    toast('Teilen geht in diesem Browser nicht. Ich habe das Bild gespeichert.', 4500);
+    openHelp();
+    return false;
+  }
+  function download(blob) {
+    const file = fileFrom(blob);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  async function saveImage(blob) {
+    // Auf dem Handy führt Teilen direkt zu „Bild sichern“
+    const file = fileFrom(blob);
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    download(blob);
+  }
+
+  function ready() { if (!src || !bbox()) { toast('Es ist noch nichts ausgeschnitten.'); return false; } return true; }
+  $('sendBtn').addEventListener('click', async () => { if (!ready()) return; await shareBlob(await exportBlob(renderSticker())); });
+  $('dlBtn').addEventListener('click', async () => { if (!ready()) return; await saveImage(await exportBlob(renderSticker())); });
+  $('saveBtn').addEventListener('click', async () => {
+    if (!ready()) return;
+    const url = renderSticker().toDataURL('image/png');
+    const list = loadList();
+    list.unshift({ id: Date.now(), url });
+    if (saveList(list)) { toast('In deiner Sammlung gespeichert.'); renderMine(); }
+  });
+
+  // ---------- Sammlung ----------
+  function loadList() { try { return JSON.parse(localStorage.getItem('sticker:list') || '[]'); } catch (e) { return []; } }
+  function saveList(list) {
+    try { localStorage.setItem('sticker:list', JSON.stringify(list)); return true; }
+    catch (e) { toast('Der Speicher ist voll. Lösch ein paar alte Sticker.', 4500); return false; }
+  }
+  let current = null;
+  function renderMine() {
+    const list = loadList(), g = $('mine');
+    g.textContent = '';
+    $('mineEmpty').hidden = list.length > 0;
+    for (const it of list) {
+      const b = document.createElement('button'); b.type = 'button';
+      b.setAttribute('aria-label', 'Sticker öffnen');
+      const img = document.createElement('img'); img.src = it.url; img.alt = '';
+      b.append(img);
+      b.addEventListener('click', () => { current = it; $('smImg').src = it.url; $('stickerModal').hidden = false; });
+      g.append(b);
+    }
+  }
+  async function blobFromUrl(url) {
+    const img = new Image(); img.src = url; await img.decode();
+    const c = document.createElement('canvas'); c.width = c.height = OUT;
+    c.getContext('2d').drawImage(img, 0, 0, OUT, OUT);
+    return exportBlob(c);
+  }
+  $('smSend').addEventListener('click', async () => { if (current) await shareBlob(await blobFromUrl(current.url)); });
+  $('smDl').addEventListener('click', async () => { if (current) await saveImage(await blobFromUrl(current.url)); });
+  $('smDel').addEventListener('click', () => {
+    if (!current) return;
+    if ($('smDel').dataset.confirm !== '1') { $('smDel').dataset.confirm = '1'; $('smDel').textContent = 'Wirklich löschen?'; return; }
+    saveList(loadList().filter(x => x.id !== current.id));
+    closeSticker(); renderMine(); toast('Gelöscht.');
+  });
+  function closeSticker() { $('stickerModal').hidden = true; $('smDel').dataset.confirm = ''; $('smDel').textContent = 'Löschen'; }
+  $('smClose').addEventListener('click', closeSticker);
+
+  // ---------- Hilfe ----------
+  function openHelp() { $('helpModal').hidden = false; }
+  $('helpBtn').addEventListener('click', openHelp);
+  $('helpClose').addEventListener('click', () => { $('helpModal').hidden = true; });
+  document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) { m.hidden = true; closeSticker(); } }));
+
+  // ---------- Ansichten ----------
+  function showEditor() { $('home').hidden = true; $('editor').hidden = false; scrollTo(0, 0); requestAnimationFrame(drawView); }
+  $('back').addEventListener('click', () => { $('editor').hidden = true; $('home').hidden = false; renderMine(); });
+
+  if (document.fonts) document.fonts.ready.then(() => { if (!$('editor').hidden) drawView(); });
+  renderMine();
+  window.__sticker = { onFile, opt, drawView, get bbox() { return bbox(); }, renderSticker };
+})();
+</script>
+</body>
+</html>
