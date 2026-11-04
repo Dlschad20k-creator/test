@@ -1,5 +1,10 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Testseite</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Eine kleine Testseite, die sich selbst prüft und Live-Werte aus dem Browser zeigt.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -31,7 +36,10 @@
     color-scheme: dark;
   }
 
+  *, *::before, *::after { box-sizing: border-box; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--bg); }
   body {
+    margin: 0;
     background: var(--bg);
     color: var(--fg);
     font-family: var(--font-body);
@@ -119,6 +127,8 @@
     * { transition: none !important; }
   }
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
@@ -217,3 +227,5 @@
     $('count').textContent = n + (n === 1 ? ' Klick' : ' Klicks');
   });
 </script>
+</body>
+</html>
