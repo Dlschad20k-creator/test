@@ -165,6 +165,43 @@
     return v;
   }
 
-  root.FlyBrainSetup = { realisticNet, groups, plasticity, odorInput, mix, valence, LEARN_DEFAULTS, NOISE, SIM, US_HZ, ORN_MAX_HZ, TMAZE };
+  // Dopamin als Neuromodulator: Wie viele Dopamin-Synapsen bekommt jedes Neuron? (aus dem Konnektom)
+  // Mehr Dopamin -> diese Neuronen werden erregbarer (D1-artige Rezeptoren erhoehen ueber cAMP die
+  // Erregbarkeit), weniger Dopamin -> weniger erregbar. Zusaetzlich feuern die Dopamin-Neuronen tonisch.
+  const DOPA = { biasMax: 2.0, tonicHz: 6 };
+  function dopamine(D, net) {
+    const N = D.N, T = D.dict.type, NTn = D.dict.nt, SC = D.dict.sc;
+    // Dopamin-Neuronen: die bekannten Dopamin-Cluster (PAM, PPL1/2, PPM, PAL) und Zelltypen, deren
+    // Neuronen mehrheitlich als dopaminerg vorhergesagt sind. Einzelne Vorhersagen streuen (z. B.
+    // Borsten-Sinneszellen oder Photorezeptoren als "DA"), darum zaehlt der Zelltyp; Sinneszellen nie.
+    // Ausgenommen: DPM (Serotonin/GABA, Lee et al. 2011) und die aufsteigenden Histamin-Neuronen
+    // (MsAHN/MtAHN) - Histamin kennt die Vorhersage nicht.
+    const cnt = new Map();
+    for (let i = 0; i < N; i++) {
+      if (!T[D.type[i]]) continue;
+      let c = cnt.get(D.type[i]); if (!c) cnt.set(D.type[i], (c = [0, 0]));
+      c[0]++; if (NTn[D.nt[i]] === "DA") c[1]++;
+    }
+    const da = [];
+    for (let i = 0; i < N; i++) {
+      const t = T[D.type[i]] || "", c = cnt.get(D.type[i]), s = SC[D.sc[i]] || "";
+      const daType = /^(PAM\d|PPL\d|PPM\d|PAL\d)/.test(t) || (c && c[1] * 2 > c[0] && !/^sensory/.test(s) && !/^(OA|5-?HT|DPM$)|AHN$/i.test(t));
+      // nur Neuronen, die im Netz keine schnelle Wirkung haben (sonst waeren sie zugleich erregend)
+      if (daType && net.ntCode[i] === NT_MOD) da.push(i);
+    }
+    const s = new Float32Array(N);
+    for (const i of da) for (let e = net.offsets[i]; e < net.offsets[i + 1]; e++) s[net.post[e]] += net.syn[e];
+    const vals = Array.from(s).filter((x) => x > 0).sort((a, b) => a - b);
+    const p95 = vals.length ? vals[Math.floor(vals.length * 0.95)] : 1;
+    const R = new Float32Array(N); let n = 0;
+    for (let j = 0; j < N; j++) if (s[j] > 0) { R[j] = Math.min(1, s[j] / p95); n++; }
+    return { da, R, targets: n };
+  }
+  // Pegel 1 = normal (wie im gepruefen Modell), 0 = kein Dopamin (wie 3IY), 3 = viel (wie L-DOPA)
+  function dopamineState(level) {
+    return { modLvl: DOPA.biasMax * (level - 1), tonicHz: level > 1 ? DOPA.tonicHz * (level - 1) : 0, etaScale: Math.max(0, level) };
+  }
+
+  root.FlyBrainSetup = { realisticNet, groups, plasticity, odorInput, mix, valence, LEARN_DEFAULTS, NOISE, SIM, US_HZ, ORN_MAX_HZ, TMAZE, DOPA, dopamine, dopamineState };
   if (typeof module !== "undefined") module.exports = root.FlyBrainSetup;
 })(typeof self !== "undefined" ? self : globalThis);

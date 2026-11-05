@@ -31,7 +31,8 @@ const FILMS = {
 };
 const ms = 2000;
 for (const [name, fn] of Object.entries(FILMS)) {
-  const eyes = EY.makeEyes(), L = eng.live(Object.assign({}, S.SIM, { seed: 1 }));
+  const eyes = EY.makeEyes({ aspect: W / H }), L = eng.live(Object.assign({}, S.SIM, { seed: 1 }));
+  K.bindEyes(eyes, VPN);
   const acc = K.newAcc(OUT); let t0 = Date.now();
   for (let t = 0; t < ms; t += 20) {
     if (t % 40 === 0) EY.sample(eyes, frame(fn, t));
@@ -40,5 +41,5 @@ for (const [name, fn] of Object.entries(FILMS)) {
     const sp = L.step(20); K.accumulate(acc, OUT, sp, 20);
   }
   const r = K.summary(acc, OUT);
-  console.log(`${name.padEnd(32)} ${Date.now() - t0}ms | Schreck ${r.schreck.toFixed(1)} | Verfolgen L/R ${r.folgenL.toFixed(1)}/${r.folgenR.toFixed(1)} | Hinlaufen ${r.hin.toFixed(1)} | Bildfluss ${r.fluss.toFixed(1)} | Eingang ${r.vpn.toFixed(0)} Hz`);
+  console.log(`${name.padEnd(32)} ${Date.now() - t0}ms | Schreck ${r.schreck.toFixed(1)} | Verfolgen L/R ${r.folgenL.toFixed(1)}/${r.folgenR.toFixed(1)} | Hinlaufen ${r.hin.toFixed(1)} | Bildfluss ${r.fluss.toFixed(1)} | Gehirn ${(r.total / 1000).toFixed(1)}k Spikes/s`);
 }

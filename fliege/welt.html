@@ -266,6 +266,8 @@
       <section class="card">
         <h2>Fliege einstellen</h2>
         <label class="field">Hunger: <span id="hungerVal" style="color:var(--fg)"></span><input type="range" id="hunger" min="0" max="100" value="70"></label>
+        <label class="field">Dopamin: <span id="dopaVal" style="color:var(--fg)">normal (×1)</span><input type="range" id="dopaRange" min="0" max="300" step="10" value="100"></label>
+        <p class="note">Mehr Dopamin macht die Neuronen erregbarer, die im Konnektom viele Dopamin-Synapsen bekommen, die Dopamin-Neuronen feuern von selbst, sie lernt stärker und läuft wacher herum. 0 % wirkt wie der Hemmstoff 3IY, 200–300 % wie L-DOPA.</p>
         <label class="chk"><input type="checkbox" id="learnOn" checked><span>Lernen eingeschaltet<small>Aus = wie die Lernmutante <i>rutabaga</i>, der das Enzym für das Lernsignal fehlt (Livingstone et al. 1984).</small></span></label>
         <label class="field">Vergessen<select id="forgetSel"><option value="0">gar nicht</option><option value="600">langsam (10 min)</option><option value="60">schnell (1 min)</option></select></label>
         <div class="sect">Mutanten: Neuronen stummschalten</div>
@@ -337,12 +339,13 @@ async function loadAll() {
 // =====================================================================
 // Gehirn aufbauen
 // =====================================================================
-let NET, G, P, REF;
+let NET, G, P, REF, DAM;
+const dopa = { level: 1, dirty: true };
 const RL = { mn9: 0, gf: 1, escL: 2, escR: 3, sugar: 4, bitter: 5, lc4L: 6, lc4R: 7, orn: 8, kc: 9, ppl1: 10, pam: 11, roundup: 12 };
 const RLN = Object.keys(RL);
 let ROLE, MBT, ROLESIZE;
 function setupBrain() {
-  NET = S.realisticNet(D); G = S.groups(D); P = S.plasticity(D, NET, G);
+  NET = S.realisticNet(D); G = S.groups(D); P = S.plasticity(D, NET, G); DAM = S.dopamine(D, NET);
   // Riechzellen nach Antenne
   G.ornSide = {};
   for (const g in G.orn) { const L = [], R = []; for (const i of G.orn[g]) (D.dict.side[D.side[i]] === "right" ? R : L).push(i); G.ornSide[g] = { L, R }; }
@@ -378,7 +381,10 @@ function startWorker() {
   worker.onmessage = (e) => {
     const r = e.data;
     if (r.type === "ready") worker.postMessage({ cmd: "live-start", params: Object.assign({}, S.SIM, { seed: (Math.random() * 1e6) | 0 }), plastic: P.cfg, noise: { idx: G.MBON, hz: S.NOISE.hz, mv: S.NOISE.mv } });
-    else if (r.type === "live-ready") { memEdges = r.edges; brainReady = true; wallRef = performance.now(); $("#overlay").hidden = true; pump(); }
+    else if (r.type === "live-ready") {
+      memEdges = r.edges; dopa.sendR = true;
+      brainReady = true; wallRef = performance.now(); $("#overlay").hidden = true; pump();
+    }
     else if (r.type === "live-spikes") onSpikes(r);
   };
 }
@@ -394,6 +400,8 @@ function pump() {
   if (learnDirty) { msg.learning = learningOn; learnDirty = false; }
   if (forgetPending) { msg.forget = true; forgetPending = false; }
   if (cfgPending) { msg.cfg = cfgPending; cfgPending = null; }
+  if (dopa.sendR) { msg.modR = DAM.R.buffer.slice(0); msg.modLvl = S.dopamineState(dopa.level).modLvl; dopa.sendR = false; }
+  if (dopa.dirty) { const st = S.dopamineState(dopa.level); msg.modLvl = st.modLvl; msg.cfg = Object.assign(msg.cfg || {}, { eta: S.LEARN_DEFAULTS.eta * st.etaScale }); dopa.dirty = false; }
   const now = performance.now();
   if (now - lastMemReq > 700) { msg.mem = true; lastMemReq = now; }
   busy = true; worker.postMessage(msg);
@@ -438,6 +446,7 @@ function readSpikes(sp, ms) {
   for (let r = 0; r < RLN.length; r++) { const hz = R.cnt[r] / Math.max(1, ROLESIZE[r]) / (ms / 1000); R.rate[r] += (hz - R.rate[r]) * a; }
   R.gfSpike = R.cnt[RL.gf] > 0;
   R.kcActive += (R.cnt[RL.kc] / (ms / 1000) - R.kcActive) * a;
+  R.total = (R.total || 0) + (sp.length / (ms / 1000) - (R.total || 0)) * a;
   const a2 = 1 - Math.exp(-ms / 350);
   for (let k = 0; k < P.types.length; k++) { const hz = R.typeCnt[k] / P.tCount[k] / (ms / 1000); R.typeRate[k] += (hz - R.typeRate[k]) * a2; }
   if (sampler.on) { for (let k = 0; k < P.types.length; k++) sampler.acc[k] += R.typeCnt[k]; sampler.ms += ms; }
@@ -568,6 +577,8 @@ function buildInput() {
   for (const [src, c] of Object.entries(senses.odorR)) { const p = patternFor(src); for (const g in p) gR[g] = (gR[g] || 0) + p[g] * c; }
   for (const g in gL) { const hz = S.ORN_MAX_HZ * Math.min(1, gL[g]); if (hz > 1 && G.ornSide[g]) for (const i of G.ornSide[g].L) { idx.push(i); rates.push(hz); } }
   for (const g in gR) { const hz = S.ORN_MAX_HZ * Math.min(1, gR[g]); if (hz > 1 && G.ornSide[g]) for (const i of G.ornSide[g].R) { idx.push(i); rates.push(hz); } }
+  // Dopamin-Pegel: bei mehr Dopamin feuern die Dopamin-Neuronen von selbst
+  { const th = S.dopamineState(dopa.level).tonicHz; if (th > 0) for (const i of DAM.da) { idx.push(i); rates.push(th); } }
   // Verstaerker: Dopamin-Neuronen direkt (wie Optogenetik)
   if (US.kind && worldMs < US.until) { const list = US.kind === "strafe" ? G.PUNISH : G.REWARD; for (const i of list) { idx.push(i); rates.push(S.US_HZ); } }
   else if (US.kind && worldMs >= US.until) US.kind = null;
@@ -621,8 +632,10 @@ function stepWorld(ms) {
   if (itId && itId !== f.lastItem) f.probe = 1.6;
   f.lastItem = itId;
   if (f.probe > 0) f.probe -= dt;
-  if (f.pause > 0) f.pause -= dt; else if (Math.random() < dt * 0.05) f.pause = 0.5 + Math.random() * 1.4;
-  let vTarget = feeding || f.pause > 0 || (f.probe > 0 && itId) ? 0 : 6 + 5 * f.hunger;
+  // Wachheit: mehr Dopamin -> weniger Pausen, schnelleres Laufen (Koerper-Regel nach Kume et al. 2005)
+  const arousal = 0.55 + 0.45 * dopa.level;
+  if (f.pause > 0) f.pause -= dt; else if (Math.random() < dt * 0.05 / arousal) f.pause = (0.5 + Math.random() * 1.4) / arousal;
+  let vTarget = feeding || f.pause > 0 || (f.probe > 0 && itId) ? 0 : (6 + 5 * f.hunger) * arousal;
   const escSum = readout.rate[RL.escL] + readout.rate[RL.escR], escDiff = readout.rate[RL.escL] - readout.rate[RL.escR];
   if (escSum > 20) { vTarget = 16; f.pause = 0; }
   // Duft-Navigation nach der Bewertung aus dem Pilzkoerper
@@ -737,6 +750,11 @@ $("#koSearch").addEventListener("input", () => {
 $("#koHits").addEventListener("click", (e) => { const b = e.target.closest("[data-kohit]"); if (!b) return; const h = koHits[+b.dataset.kohit]; customKo.push(h); silenceDirty = true; log(`🧬 Mutante: ${esc(h.name)} stumm.`); $("#koSearch").value = ""; $("#koHits").innerHTML = ""; renderKo(); });
 $("#koChips").addEventListener("click", (e) => { const b = e.target.closest("[data-kodel]"); if (!b) return; const [c] = customKo.splice(+b.dataset.kodel, 1); silenceDirty = true; log(`${esc(c.name)} wieder aktiv.`); renderKo(); });
 $("#hunger").addEventListener("input", (e) => { fly.hunger = +e.target.value / 100; });
+$("#dopaRange").addEventListener("input", (e) => {
+  dopa.level = +e.target.value / 100; dopa.dirty = true;
+  const v = dopa.level; $("#dopaVal").textContent = v < 0.05 ? "keins (wie 3IY)" : v <= 1.15 && v >= 0.85 ? "normal (×1)" : `×${fmt1.format(v)}${v > 1.9 ? " (wie L-DOPA)" : ""}`;
+});
+$("#dopaRange").addEventListener("change", () => log(`💊 Dopamin auf ${Math.round(dopa.level * 100)} %: <span class="brain">${dopa.level > 1.1 ? "Dopamin-Neuronen feuern mehr, Ziel-Neuronen erregbarer" : dopa.level < 0.9 ? "weniger Dopamin, Ziel-Neuronen weniger erregbar, schwächeres Lernen" : "normal"}</span>.`));
 $("#learnOn").addEventListener("change", (e) => { learningOn = e.target.checked; learnDirty = true; log(learningOn ? "Lernen wieder eingeschaltet." : "🧬 Lernmutante: Lernen ausgeschaltet (wie <i>rutabaga</i>)."); });
 $("#forgetSel").addEventListener("change", (e) => { cfgPending = { tauForget: +e.target.value }; });
 $("#forgetBtn").addEventListener("click", () => { forgetPending = true; lab.bias = null; log("Gedächtnis gelöscht: alle Synapsen wieder wie bei einer naiven Fliege."); });
@@ -1495,7 +1513,7 @@ function updateHud() {
     ${slow ? `<span class="pill warn">Gehirn rechnet: Zeitlupe ×${fmt1.format(rtFactor)}</span>` : ""}
     ${speed === 0 && running ? `<span class="pill">Tempo ×${fmt1.format(rtFactor)}</span>` : ""}
     ${!running ? `<span class="pill">Pause</span>` : ""}`;
-  $("#brainStat").textContent = `${fmt0.format(readout.kcActive)} KC-Spikes/s`;
+  $("#brainStat").textContent = `${fmt0.format(readout.total || 0)} Spikes/s · ${fmt0.format(readout.kcActive)} davon Kenyon`;
   if (frame % 16 === 0) { $("#hungerVal").textContent = fmt0.format(fly.hunger * 100) + " %"; if (document.activeElement !== $("#hunger")) $("#hunger").value = Math.round(fly.hunger * 100); }
 }
 

@@ -109,11 +109,15 @@ Die einfache 2D-Version der Welt ohne Lernen liegt in `welt-2d.html`.
 ## Fliegenkino (`kino.html`)
 
 Der Fliege ein Video zeigen (Datei oder eingebauter Testfilm; das Video bleibt im Browser). Sie
-schaut es Bild für Bild (25 Bilder/s) mit zwei Facettenaugen an, und ihr Gehirn reagiert:
+schaut es **live** an: Jedes Bild, das im Video erscheint, geht sofort in ihre zwei Facettenaugen,
+und ihr Gehirn reagiert. Schafft das Gehirn die Echtzeit nicht, läuft das Video automatisch
+langsamer („Zeitlupe“), statt zu ruckeln. Quer- und Hochkant-Videos: Das Gesichtsfeld passt sich
+dem Format an. Kommen mehr als 4 Sekunden nur schwarze Bilder an (typisch für Videoformate, die
+der Browser nicht entschlüsseln kann, z. B. HEVC vom iPhone), erscheint ein Hinweis mit Tipps.
 
 | Stufe | Wie |
 | --- | --- |
-| Augen und Sehlappen (`augen.js`) | **klassisches Modell**: je Auge ~225 Ommatidien (5°), Anpassung, AN/AUS-Kanäle, Bewegungsdetektoren nach Hassenstein & Reichardt (T4/T5), Ausdehnungs-, Annäherungs- und Kleinobjekt-Detektion mit Umfeld-Hemmung |
+| Augen und Sehlappen (`augen.js`) | **klassisches Modell**: je Auge ~225 Ommatidien (5°), Anpassung, AN/AUS-Kanäle, Bewegungsdetektoren nach Hassenstein & Reichardt (T4/T5), Ausdehnungs-, Annäherungs- und Kleinobjekt-Detektion mit Umfeld-Hemmung; ~0,4 ms pro Bild |
 | Projektionsneuronen (`kino-setup.js`) | LPLC2, LC4, LC10a, LC11, HS, VS im Konnektom bekommen diese Signale, je Neuron nach seiner Lage im Gesichtsfeld |
 | Gehirn | echtes FlyWire-Netz mit den Korrekturen aus `brain-setup.js` |
 | Urteil | absteigende Neuronen: DNa02 (zum Objekt drehen) und DNp09 (loslaufen) = gut; Riesenfaser DNp01 und Flucht-Neuronen DNp02/04/11 = Schreck |
@@ -129,11 +133,40 @@ Prüfen: `node fliege/tools/kino_test.js` – Ergebnis des letzten Laufs:
 | Testfilm | Reaktion |
 | --- | --- |
 | Standbild | nichts |
-| Etwas fliegt links heran | Schreck 7 Hz (Riesenfaser + Flucht), Bildfluss |
-| Kleine Fliege links / rechts | Hinwenden links 23,5 Hz / rechts 12 Hz |
-| Langsame kleine Fliege (11°/s) | Hinwenden links 27,5 Hz |
+| Etwas fliegt links heran | Schreck 5,8 Hz (Riesenfaser + Flucht), Bildfluss |
+| Kleine Fliege links / rechts | Hinwenden links 23,5 Hz / rechts 9,5 Hz |
+| Langsame kleine Fliege (11°/s) | Hinwenden links 31 Hz |
 | Landschaft zieht vorbei | Bildfluss 41 Hz, kaum Hinwenden |
 | Handyvideo mit Rauschen und Wackeln | nichts (keine Fehlalarme) |
+
+## Dopamin-Experiment (Kino und Fliegenwelt)
+
+Ein Regler von 0 % (wie der Hemmstoff **3IY**, der die Dopamin-Herstellung blockiert) bis 300 %
+(wie **L-DOPA**). Wirkung im Modell (`brain-setup.js`, `dopamine`):
+
+- **538 Dopamin-Neuronen**: die bekannten Dopamin-Cluster (PAM, PPL1/2, PPM, PAL) und Zelltypen,
+  deren Neuronen mehrheitlich als dopaminerg vorhergesagt sind. Gezählt wird der Zelltyp, nicht
+  die Einzelvorhersage – die hält z. B. manche Borsten-Sinneszellen und Photorezeptoren für
+  dopaminerg. Bei mehr Dopamin feuern sie von selbst (bis 12 Hz).
+- **4.586 Neuronen**, die im Konnektom Dopamin-Synapsen bekommen, werden erregbarer (bis +4 mV),
+  bei weniger Dopamin weniger erregbar. Vereinfachung: Im Tier gibt es auch hemmende
+  Dopamin-Rezeptoren (D2R); hier zählt nur die Netto-Wirkung über cAMP (D1-artig).
+- Das Lernen im Pilzkörper skaliert mit der Dopamin-Menge. In der Fliegenwelt läuft sie wacher
+  herum (Körper-Regel nach Kume et al. 2005; Andretic et al. 2005).
+
+`node fliege/tools/dopamin_test.js` – je 1 s, Mittel aus 6 Läufen:
+
+| Dopamin | Ruhe | Zucker → aktive Neuronen / Rüssel-Befehl MN9 | Gefahr (LC4) → aktiv / Riesenfaser | Duft (Octanol) → aktiv |
+| --- | --- | --- | --- | --- |
+| 0 % (3IY) | 0 | 165 / 5,2 Hz | 196 / 11,3 Hz | 2.029 |
+| 100 % | 0 | 199 / 6,7 Hz | 195 / 10,6 Hz | 2.298 |
+| 200 % | 537 | 711 / 7,1 Hz | 728 / 10,4 Hz | 2.903 |
+| 300 % (L-DOPA) | 538 | 728 / 9,3 Hz | 691 / 8,1 Hz | 2.986 |
+
+Mehr Dopamin macht das Gehirn bei jedem Reiz aktiver, und der Fressbefehl wird stärker – passend
+zu Marella et al. 2012 (Dopamin erhöht die Rüssel-Reaktion). Die Riesenfaser (Flucht) wird
+dagegen nicht stärker, eher etwas schwächer. In Ruhe feuern nur die Dopamin-Neuronen selbst;
+eine Dauererregung des ganzen Gehirns entsteht nicht.
 
 ## Das Modell (Labor-Seite)
 

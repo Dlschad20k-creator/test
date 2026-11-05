@@ -4,16 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fliegenkino</title>
-<meta name="description" content="Gib der Fruchtfliege ein Video: Sie schaut es mit Facettenaugen an, ihr echtes FlyWire-Gehirn reagiert – und sie sagt, welche Stellen sie gut findet.">
+<meta name="description" content="Die Fruchtfliege schaut dein Video live mit Facettenaugen an, ihr echtes FlyWire-Gehirn reagiert – mit Dopamin-Regler und Urteil, welche Stellen sie gut findet.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-  /* Layout: links Video, Zeitleiste und Urteil der Fliege; rechts Fliegenblick, Gehirn live und Messwerte. Auf dem Handy untereinander. */
+  /* Layout: links der dunkle Kinosaal (Leinwand, Steuerung, Dopamin, Zeitleiste), rechts Fliegenblick und Gehirn live; darunter Urteil und Erklaerung. Auf dem Handy untereinander, Leinwand zuerst. */
   :root {
-    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #f6f7fb; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
+    --bg: #eef1f7; --surface: #ffffff; --surface-2: #f5f7fb; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
     --accent: #2b4dd8; --accent-soft: #e6ebff;
-    --good: #0a8f86; --good-soft: #dcf3f1; --bad: #c23a3a; --bad-soft: #f8e3e3; --warn: #a5650a; --warn-soft: #f8eedc; --flow: #7a86a3;
+    --good: #0a8f86; --good-soft: #dcf3f1; --bad: #c23a3a; --bad-soft: #f8e3e3; --flow: #7a86a3; --dopa: #b0459d;
+    --hall: #0d111c; --hall-2: #161c2c; --hall-line: #262f47; --hall-fg: #e8ecf8; --hall-muted: #9aa5c2;
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -21,167 +22,216 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
-      --accent: #8ea4ff; --accent-soft: #232d52;
-      --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --warn: #f0b54f; --warn-soft: #3a2c14; --flow: #8f9ab8;
+      --bg: #0b0f1a; --surface: #151b2c; --surface-2: #1b2236; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+      --accent: #8ea4ff; --accent-soft: #232d52; --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --flow: #8f9ab8; --dopa: #e07fd0;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
-    --accent: #8ea4ff; --accent-soft: #232d52;
-    --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --warn: #f0b54f; --warn-soft: #3a2c14; --flow: #8f9ab8;
+    --bg: #0b0f1a; --surface: #151b2c; --surface-2: #1b2236; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+    --accent: #8ea4ff; --accent-soft: #232d52; --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --flow: #8f9ab8; --dopa: #e07fd0;
     color-scheme: dark;
   }
   *, *::before, *::after { box-sizing: border-box; }
   [hidden] { display: none !important; }
   :root { background: var(--bg); }
   body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-  .wrap { max-width: 1360px; margin: 0 auto; padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: grid; gap: 18px; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 56px max(14px, env(safe-area-inset-left)); display: grid; gap: 18px; }
   h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; }
   h1 { font-size: clamp(28px, 4.4vw, 42px); }
   h2 { font-size: 19px; }
   h3 { font-size: 15px; }
   p { margin: 0; }
   a { color: var(--accent); }
-  .muted, .note { color: var(--muted); }
-  .note { font-size: 13.5px; }
+  .note { font-size: 13.5px; color: var(--muted); }
   header { display: grid; gap: 6px; }
-  header .lead { color: var(--muted); max-width: 80ch; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
-  @media (max-width: 1000px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .live { font: 700 12px var(--font-body); letter-spacing: .08em; color: #fff; background: #e0383e; padding: 3px 9px; border-radius: 6px; }
+  header .lead { color: var(--muted); max-width: 82ch; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+  @media (max-width: 1040px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   .col { display: grid; gap: 18px; min-width: 0; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .spread { justify-content: space-between; }
-  .btn { font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+
+  /* Kinosaal */
+  .hall { background: var(--hall); color: var(--hall-fg); border-radius: 18px; padding: 14px; display: grid; gap: 12px; min-width: 0; box-shadow: 0 10px 30px rgba(10, 14, 28, .18); }
+  .hall .note { color: var(--hall-muted); }
+  .hall-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .vid-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .btn { font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 13px; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; justify-content: center; white-space: nowrap; }
   .btn:hover { border-color: var(--muted); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; }
-  :root[data-theme="dark"] .btn.primary { color: #0f1422; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0f1422; } }
-  .btn:disabled { opacity: .5; cursor: default; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; display: grid; gap: 8px; place-items: center; background: var(--surface-2); }
-  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
-  .screen { position: relative; border-radius: 12px; overflow: hidden; background: #0b0e16; aspect-ratio: 16 / 9; }
-  .screen video, .screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
-  .reaction { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
-  .pill { background: rgba(16, 20, 32, .78); color: #eef1fa; font-size: 13.5px; padding: 3px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
-  .pill.bad { background: rgba(194, 58, 58, .92); }
-  .pill.good { background: rgba(10, 143, 134, .92); }
-  .bar { height: 7px; border-radius: 4px; background: rgba(128,140,170,.25); overflow: hidden; }
-  .bar > span { display: block; height: 100%; width: 0; background: var(--accent); }
-  #timeline { width: 100%; height: 150px; display: block; border-radius: 10px; background: var(--surface-2); cursor: pointer; touch-action: none; }
-  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .hall .btn { color: var(--hall-fg); background: var(--hall-2); border-color: var(--hall-line); }
+  .hall .btn:hover { border-color: var(--hall-muted); }
+  .btn.primary, .hall .btn.primary { background: #3b5cff; border-color: #3b5cff; color: #fff; }
+  .btn.big { font-size: 16px; padding: 11px 18px; border-radius: 12px; }
+  button:focus-visible, input:focus-visible, label.btn:focus-within { outline: 2px solid #8ea4ff; outline-offset: 2px; }
+  .stage { display: grid; place-items: center; background: #05070d; border-radius: 12px; overflow: hidden; min-height: 200px; }
+  .screen { position: relative; width: 100%; max-height: 66vh; aspect-ratio: var(--ar, 16 / 9); background: #05070d; }
+  .screen.portrait { width: auto; height: min(66vh, 620px); }
+  .screen video, .screen canvas.film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; background: #05070d; }
+  .empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; padding: 18px; color: var(--hall-fg); border: 2px dashed var(--hall-line); border-radius: 12px; margin: 10px; }
+  .empty.over { border-color: #8ea4ff; background: rgba(59, 92, 255, .12); }
+  .empty b { font: 700 20px var(--font-display); }
+  .pills { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+  .pill { background: rgba(10, 14, 26, .78); color: #eef1fa; font-size: 14px; padding: 4px 11px; border-radius: 999px; font-weight: 600; backdrop-filter: blur(4px); }
+  .pill.bad { background: rgba(214, 52, 58, .95); }
+  .pill.good { background: rgba(10, 150, 140, .95); }
+  .pill.dopa { background: rgba(176, 69, 157, .92); }
+  .pill.slow { background: rgba(165, 101, 10, .95); }
+  .opinion { position: absolute; left: 12px; right: 12px; bottom: 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; pointer-events: none; color: #fff; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .opbar { position: relative; height: 10px; border-radius: 6px; background: linear-gradient(90deg, #d6343a, #5a6170 50%, #0a968c); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+  .opbar i { position: absolute; top: -5px; width: 6px; height: 20px; border-radius: 3px; background: #fff; left: 50%; transform: translateX(-50%); transition: left .15s linear; box-shadow: 0 0 6px rgba(0,0,0,.5); }
+  .warnbox { background: #3a1c22; border: 1px solid #7a2d36; color: #ffd9dc; border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; font-size: 14.5px; }
+  .warnbox b { color: #fff; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .speed { font-size: 13.5px; color: var(--hall-muted); font-variant-numeric: tabular-nums; }
+  .dopa { display: grid; gap: 6px; background: var(--hall-2); border: 1px solid var(--hall-line); border-radius: 12px; padding: 10px 12px; }
+  .dopa-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .dopa-head b { color: #f2b6e8; }
+  .dopa input[type=range] { width: 100%; accent-color: #d05cbd; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font: 600 12.5px var(--font-body); color: var(--hall-fg); background: transparent; border: 1px solid var(--hall-line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: rgba(208, 92, 189, .25); border-color: #d05cbd; }
+  #timeline { width: 100%; height: 132px; display: block; border-radius: 10px; background: var(--hall-2); cursor: pointer; touch-action: none; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--hall-muted); }
   .legend i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: 3px; }
-  .verdict { display: grid; gap: 6px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
-  .verdict .big { font: 700 24px var(--font-display); }
-  .moments { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-  .moment { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 8px; cursor: pointer; font: inherit; color: inherit; }
-  .moment:hover { border-color: var(--accent); }
-  .moment img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 7px; background: #0b0e16; display: block; }
-  .moment b { font-weight: 600; }
-  .moment small { color: var(--muted); }
-  .tag { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
-  .tag.good { background: var(--good-soft); color: var(--good); }
-  .tag.bad { background: var(--bad-soft); color: var(--bad); }
-  .tag.flow { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+
+  /* Seitenleiste */
   #eyeCv, #brainCv { width: 100%; display: block; border-radius: 10px; background: #070a12; }
   #eyeCv { aspect-ratio: 2 / 1; }
   #brainCv { aspect-ratio: 16 / 9; }
+  .bigstats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+  .stat b { display: block; font: 700 22px var(--font-display); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12.5px; color: var(--muted); }
   .meters { display: grid; gap: 6px; }
-  .meter { display: grid; grid-template-columns: 1fr 58px; gap: 2px 8px; font-size: 13.5px; align-items: center; }
+  .meter { display: grid; grid-template-columns: 1fr 64px; gap: 2px 8px; font-size: 13.5px; align-items: center; }
   .meter .val { text-align: right; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
   .meter .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
-  .meter .track span { display: block; height: 100%; width: 0; transition: width .1s linear; }
-  .sect { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
-  .flow-list { font-size: 14px; display: grid; gap: 7px; }
-  .flow-list div { display: grid; grid-template-columns: 104px 1fr; gap: 8px; }
+  .meter .track span { display: block; height: 100%; width: 0; transition: width .12s linear; }
+
+  /* Urteil */
+  .verdict { display: grid; gap: 6px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
+  .verdict .big { font: 700 26px var(--font-display); }
+  .moments { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .moment { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 8px; cursor: pointer; font: inherit; color: inherit; }
+  .moment:hover { border-color: var(--accent); }
+  .moment img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: #05070d; display: block; }
+  .moment small { color: var(--muted); }
+  .tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 6px; }
+  .tag.good { background: var(--good-soft); color: var(--good); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .flow-list { font-size: 14px; display: grid; gap: 8px; }
+  .flow-list div { display: grid; grid-template-columns: 110px 1fr; gap: 8px; }
+  @media (max-width: 560px) { .flow-list div { grid-template-columns: 1fr; gap: 2px; } }
   .tagb { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; vertical-align: 1px; }
   .tagb.brain { background: var(--accent-soft); color: var(--accent); }
-  .tagb.model { background: var(--warn-soft); color: var(--warn); }
+  .tagb.model { background: #f8eedc; color: #a5650a; }
+  .tagb.dopa { background: #f3e1f0; color: #8d2f7e; }
   footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 100ch; }
+  @media (max-width: 1040px) { .col { display: contents; } .hall { order: 1; } .eyecard { order: 2; } .braincard { order: 3; } .results { order: 4; } .explain { order: 5; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Fliegenkino</h1>
-    <p class="lead">Gib der Fruchtfliege ein Video. Sie schaut es mit ihren beiden Facettenaugen an, ihr Gehirn aus dem FlyWire-Konnektom reagiert Bild für Bild – und am Ende sagt sie dir, welche Stellen sie gut fand und wo sie sich erschreckt hat.</p>
+    <div class="brand"><h1>Fliegenkino</h1><span class="live">LIVE</span></div>
+    <p class="lead">Die Fruchtfliege schaut dein Video live mit zwei Facettenaugen an. Ihr Gehirn aus dem FlyWire-Konnektom reagiert Bild für Bild – du siehst, wann sie etwas spannend findet und wann sie sich erschreckt. Dreh am Dopamin und schau, wie ihr Gehirn aktiver wird.</p>
   </header>
 
-  <div class="grid">
+  <div class="layout">
     <div class="col">
-      <section class="card">
-        <div class="drop" id="drop">
-          <b>Video hier ablegen</b>
-          <span class="note">oder auswählen – es bleibt auf deinem Gerät, nichts wird hochgeladen</span>
-          <div class="row" style="justify-content:center">
-            <label class="btn primary" for="file">Video auswählen</label>
-            <input type="file" id="file" accept="video/*" hidden>
-            <button class="btn" id="demoBtn">Testfilm nehmen</button>
-          </div>
-        </div>
-        <div class="screen" id="screen" hidden>
-          <video id="video" playsinline muted preload="auto"></video>
-          <canvas id="demoCv" hidden></canvas>
-          <div class="reaction" id="reaction"></div>
-        </div>
-        <div class="row spread" id="controls" hidden>
+      <section class="hall" aria-label="Kinosaal">
+        <div class="hall-top">
+          <span class="vid-title" id="vidTitle">Noch kein Video</span>
           <div class="row">
-            <button class="btn primary" id="watchBtn">Fliege schaut zu</button>
-            <button class="btn" id="playBtn" disabled>▶ Abspielen mit Reaktionen</button>
-            <button class="btn" id="stopBtn" hidden>Abbrechen</button>
+            <label class="btn" for="file">🎞 Video wählen<input type="file" id="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" hidden></label>
+            <button class="btn" id="demoBtn">Testfilm</button>
           </div>
-          <span class="note" id="status"></span>
         </div>
-        <div class="bar" id="progress" hidden><span></span></div>
-        <canvas id="timeline" hidden></canvas>
-        <div class="legend" id="legend" hidden>
-          <span><i style="background:var(--good)"></i>Interesse (hinwenden, hinlaufen)</span>
-          <span><i style="background:var(--bad)"></i>Schreck (Riesenfaser, Flucht)</span>
-          <span><i style="background:var(--flow)"></i>Bildfluss</span>
-          <span>Balken oben: Urteil je Sekunde</span>
+        <div class="stage">
+          <div class="screen" id="screen">
+            <video id="video" playsinline muted preload="auto"></video>
+            <canvas class="film" id="demoCv" hidden></canvas>
+            <div class="empty" id="empty">
+              <b>Video hier ablegen</b>
+              <span class="note">oder oben „Video wählen“ – es bleibt auf deinem Gerät.<br>MP4, MOV, WebM · Hochkant und quer</span>
+            </div>
+            <div class="pills" id="pills"></div>
+            <div class="opinion" id="opinion" hidden><span>gruselig</span><div class="opbar"><i id="opMarker"></i></div><span>spannend</span></div>
+          </div>
+        </div>
+        <div class="warnbox" id="warn" hidden></div>
+        <div class="controls">
+          <div class="row">
+            <button class="btn big primary" id="watchBtn" disabled>▶ Fliege schaut live zu</button>
+            <button class="btn" id="restartBtn" disabled>⟲ Von vorne</button>
+          </div>
+          <span class="speed" id="speed">Lade das Fliegenhirn …</span>
+        </div>
+        <div class="dopa">
+          <div class="dopa-head"><span>Dopamin: <b id="dopaVal">normal (×1)</b></span><span class="note" id="dopaInfo">wirkt über 538 Dopamin-Neuronen auf 4.586 Ziel-Neuronen</span></div>
+          <input type="range" id="dopa" min="0" max="300" step="10" value="100" aria-label="Dopamin-Menge">
+          <div class="chips" id="dopaChips">
+            <button class="chip" data-dopa="0">3IY – kein Dopamin</button>
+            <button class="chip" data-dopa="100" aria-pressed="true">normal</button>
+            <button class="chip" data-dopa="200">L-DOPA</button>
+            <button class="chip" data-dopa="300">sehr viel</button>
+          </div>
+        </div>
+        <canvas id="timeline"></canvas>
+        <div class="legend">
+          <span><i style="background:#3fd0c4"></i>Interesse</span>
+          <span><i style="background:#ff6b6b"></i>Schreck</span>
+          <span><i style="background:#8f9ab8"></i>Bildfluss</span>
+          <span><i style="background:#e07fd0"></i>Dopamin-Pegel</span>
+          <span>oben: Urteil je Sekunde · tippen = springen</span>
         </div>
       </section>
 
-      <section class="card" id="resultCard" hidden>
+      <section class="card results" id="resultCard" hidden>
         <h2>Das sagt die Fliege</h2>
         <div class="verdict" id="verdict"></div>
         <h3>Diese Stellen findet sie gut</h3>
         <div class="moments" id="best"></div>
         <h3>Hier hat sie sich erschreckt</h3>
         <div class="moments" id="worst"></div>
-        <p class="note">Antippen springt im Video an die Stelle. Gut = Interesse (sie will sich hinwenden oder hinlaufen) minus doppelter Schreck. Bildfluss zählt nur ein bisschen: Für eine Fliege ist ein vorbeiziehender Hintergrund kein Ereignis, sondern etwas, das sie ausgleicht.</p>
       </section>
 
-      <section class="card">
-        <h2>Wie sie schaut</h2>
+      <section class="card explain">
+        <h2>Was hier passiert</h2>
         <div class="flow-list">
-          <div><b>Augen</b><span><span class="tagb model">klassisches Modell</span> Je Auge ~225 Ommatidien im Abstand von 5° sehen den Bildschirm (120° breit). Helligkeit, Anpassung und AN/AUS-Kanäle. Bewegung messen Detektoren nach Hassenstein &amp; Reichardt – das Lehrbuchmodell der T4/T5-Zellen. Diese ersten Sehstufen arbeiten im Tier ohne Spikes; ein Spike-Modell des Konnektoms kann sie nicht nachbilden.</span></div>
-          <div><b>Detektoren</b><span><span class="tagb model">klassisches Modell</span> Ausdehnung in alle Richtungen (für LPLC2), dunkles Objekt wird größer (LC4), kleines bewegtes Ding mit Umfeld-Hemmung (LC10a, LC11), Bildfluss je Auge (HS, VS).</span></div>
-          <div><b>Gehirn</b><span><span class="tagb brain">Konnektom</span> Ab diesen Projektionsneuronen rechnet das echte FlyWire-Gehirn: LPLC2 → Riesenfaser (Absprung), LC4 → Flucht-Neuronen, LC10a → DNa02 (zum Objekt drehen), LC9/LC10 → DNp09 (loslaufen).</span></div>
-          <div><b>Urteil</b><span>Gezählt wird, was die absteigenden Neuronen dem Körper melden würden: hinwenden/hinlaufen ist gut, Absprung und Flucht sind schlecht.</span></div>
+          <div><b>Augen</b><span><span class="tagb model">klassisches Modell</span> Je Auge ~225 Ommatidien im Abstand von 5° sehen den Bildschirm (Gesichtsfeld passt sich quer oder hochkant an). Anpassung an die Helligkeit, AN/AUS-Kanäle und Bewegungsdetektoren nach Hassenstein &amp; Reichardt – das Lehrbuchmodell der T4/T5-Zellen. Diese ersten Sehstufen arbeiten im Tier ohne Spikes; im Spike-Modell des Konnektoms kommt dort nichts durch (getestet).</span></div>
+          <div><b>Gehirn</b><span><span class="tagb brain">Konnektom</span> Ab den Sehneuronen LPLC2, LC4, LC10a, LC11, HS und VS rechnet das echte FlyWire-Gehirn mit allen 139.255 Neuronen: LPLC2 → Riesenfaser (Absprung), LC4 → Flucht-Neuronen, LC10a → DNa02 (zum Objekt drehen).</span></div>
+          <div><b>Dopamin</b><span><span class="tagb dopa">Experiment</span> Mehr Dopamin macht die Neuronen erregbarer, die im Konnektom viele Dopamin-Synapsen bekommen (4.586 Neuronen; D1-artige Rezeptoren erhöhen über cAMP die Erregbarkeit; vereinfacht: hemmende D2-Rezeptoren fehlen), und die Dopamin-Neuronen feuern von selbst. „3IY“ hemmt im echten Versuch die Dopamin-Herstellung, „L-DOPA“ erhöht sie. Bei Fliegen macht mehr Dopamin wacher und aktiver (Kume et al. 2005; Andretic et al. 2005).</span></div>
+          <div><b>Urteil</b><span>Live gemessen an den absteigenden Neuronen: zum Objekt drehen oder hinlaufen ist gut, Riesenfaser und Flucht-Neuronen sind Schreck. Bildfluss zählt wenig – den gleicht sie nur aus.</span></div>
         </div>
       </section>
     </div>
 
-    <div class="col">
-      <section class="card">
+    <div class="col side">
+      <section class="card eyecard">
         <div class="row spread"><h2>Was die Fliege sieht</h2><span class="note">links | rechts</span></div>
         <canvas id="eyeCv"></canvas>
-        <p class="note">Jeder Punkt ist ein Ommatidium. Rot leuchtet, wo etwas größer wird; Grün, wo ein kleines Ding sich bewegt.</p>
+        <p class="note">Jeder Punkt ist ein Ommatidium. Rot: etwas wird größer. Grün: ein kleines Ding bewegt sich.</p>
       </section>
-      <section class="card">
-        <div class="row spread"><h2>Gehirn live</h2><span class="note" id="brainStat"></span></div>
+      <section class="card braincard">
+        <div class="row spread"><h2>Gehirn live</h2><span class="note" id="brainNote"></span></div>
         <canvas id="brainCv"></canvas>
+        <div class="bigstats">
+          <div class="stat"><b id="statTotal">0</b><span>Spikes pro Sekunde</span></div>
+          <div class="stat"><b id="statDa">0 Hz</b><span>Dopamin-Neuronen</span></div>
+        </div>
         <div class="meters" id="meters"></div>
       </section>
     </div>
   </div>
 
   <footer>
-    <p>Gehirn: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024; Matsliah et al. 2024), CC BY-NC 4.0, mit den biologischen Korrekturen der Fliegenwelt. Bewegungssehen nach Hassenstein &amp; Reichardt 1956 und Borst 2014; LPLC2/LC4 → Riesenfaser nach von Reyn et al. 2017 und Ache et al. 2019; LC10a → DNa02 nach Ribeiro et al. 2018; Kleinobjekt-Detektion nach Keleş &amp; Frye 2017.</p>
+    <p>Gehirn: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024; Matsliah et al. 2024), CC BY-NC 4.0, mit den biologischen Korrekturen der Fliegenwelt. Bewegungssehen nach Hassenstein &amp; Reichardt 1956 und Borst 2014; LPLC2/LC4 → Riesenfaser nach von Reyn et al. 2017 und Ache et al. 2019; LC10a → DNa02 nach Ribeiro et al. 2018; Kleinobjekt-Detektion nach Keleş &amp; Frye 2017; Dopamin und Aktivität nach Kume et al. 2005, Andretic et al. 2005, Marella et al. 2012.</p>
     <p><a href="welt.html">Fliegenwelt 3D</a> · <a href="./">Fliegenhirn-Labor</a> · <a href="../">Testseite</a></p>
   </footer>
 </div>
@@ -197,19 +247,21 @@ const fmt0 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
 const fmt1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const tstr = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const FPS = 25, FRAME_MS = 1000 / FPS, MAX_SEC = 180;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const MAX_SEC = 600, BIN = 0.1; // Aufzeichnung in 0,1-s-Stuecken
 
-// ---------- Gehirn laden ----------
+// =====================================================================
+// Gehirn
+// =====================================================================
 const D = {};
+let VPN, OUT, DA, worker = null, brainReady = false, onBrain = null;
 async function fetchBytes(url) {
   const r = await fetch(url); if (!r.ok) throw new Error(url + ": HTTP " + r.status);
   let bytes = new Uint8Array(await r.arrayBuffer());
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
   return bytes;
 }
-let VPN, OUT, worker, brainReady = false, pending = null;
 async function loadBrain() {
-  $("#status").textContent = "Lade das Fliegenhirn …";
   const [mB, pB, cB] = await Promise.all(["data/meta.json.gz", "data/pos.bin.gz", "data/conn.bin.gz"].map(fetchBytes));
   const meta = JSON.parse(new TextDecoder().decode(mB)); const N = meta.count;
   Object.assign(D, { meta, N, dict: meta.dict, label: meta.label });
@@ -218,80 +270,94 @@ async function loadBrain() {
   D.offsets = new Uint32Array(buf, 0, N + 1); const E = D.offsets[N];
   D.post = new Uint32Array(buf, (N + 1) * 4, E); D.syn = new Uint16Array(buf, (N + 1) * 4 + E * 4, E);
   D.pos = new Uint16Array(pB.buffer.slice(pB.byteOffset, pB.byteOffset + pB.byteLength));
-  // Vorderansicht fuers Gehirn-Bild
   const mn = [1e9, 1e9], mx = [-1e9, -1e9];
   for (let i = 0; i < N; i++) for (let a = 0; a < 2; a++) { const v = D.pos[i * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
-  const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2], s = Math.max(mx[0] - mn[0], mx[1] - mn[1]) / 2;
+  const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2], sc = Math.max(mx[0] - mn[0], mx[1] - mn[1]) / 2;
   D.bx = new Float32Array(N); D.by = new Float32Array(N);
-  for (let i = 0; i < N; i++) { D.bx[i] = (D.pos[i * 3] - c[0]) / s; D.by[i] = (D.pos[i * 3 + 1] - c[1]) / s; }
+  for (let i = 0; i < N; i++) { D.bx[i] = (D.pos[i * 3] - c[0]) / sc; D.by[i] = (D.pos[i * 3 + 1] - c[1]) / sc; }
   const net = S.realisticNet(D);
-  VPN = KI.visualNeurons(D); OUT = KI.outputs(D);
-  D.isVPN = new Uint8Array(N); for (const n of VPN.list) D.isVPN[n.i] = 1; for (const e of ["L", "R"]) for (const i of [...VPN.hs[e], ...VPN.vs[e]]) D.isVPN[i] = 1;
-  worker = new Worker("sim-worker.js");
-  const m = { cmd: "init", offsets: net.offsets.buffer, post: net.post.buffer, syn: net.syn.buffer, ntCode: net.ntCode.buffer, gain: net.gain.buffer };
-  worker.postMessage(m, [m.offsets, m.post, m.syn, m.ntCode, m.gain]);
-  await new Promise((res) => {
+  DA = S.dopamine(D, net); VPN = KI.visualNeurons(D); OUT = KI.outputs(D, DA.da);
+  D.kind = new Uint8Array(N); for (const n of VPN.list) D.kind[n.i] = 1; for (const e of [0, 1]) for (const i of [...VPN.hs[e], ...VPN.vs[e]]) D.kind[i] = 1; for (const i of DA.da) D.kind[i] = 2;
+  $("#dopaInfo").textContent = `wirkt über ${fmt0.format(DA.da.length)} Dopamin-Neuronen auf ${fmt0.format(DA.targets)} Ziel-Neuronen`;
+  await startWorker(net);
+}
+function startWorker(net) {
+  return new Promise((res, rej) => {
+    worker = new Worker("sim-worker.js");
+    const m = { cmd: "init", offsets: net.offsets.buffer, post: net.post.buffer, syn: net.syn.buffer, ntCode: net.ntCode.buffer, gain: net.gain.buffer };
+    worker.postMessage(m, [m.offsets, m.post, m.syn, m.ntCode, m.gain]);
+    worker.onerror = (e) => { e.preventDefault(); showWarn(`<b>Das Gehirn ist abgestürzt.</b> ${esc(e.message || "")} Bitte die Seite neu laden.`); stopLive(); rej(e); };
     worker.onmessage = (e) => {
       const r = e.data;
       if (r.type === "ready") worker.postMessage({ cmd: "live-start", params: Object.assign({}, S.SIM, { seed: 5 }) });
-      else if (r.type === "live-ready") { brainReady = true; res(); }
-      else if (r.type === "live-spikes" && pending) { const p = pending; pending = null; p(r); }
+      else if (r.type === "live-ready") {
+        // Dopamin-Empfaenglichkeit einmal uebertragen
+        onBrain = () => { brainReady = true; res(); };
+        worker.postMessage({ cmd: "live-step", ms: 20, input: { idx: [], rates: [] }, modR: DA.R.buffer.slice(0), modLvl: S.dopamineState(1).modLvl });
+      } else if (r.type === "live-spikes") { const f = onBrain; onBrain = null; if (f) f(r); }
     };
   });
-  resizeBrain(); renderMeters();
-  $("#status").textContent = "Gehirn bereit.";
-}
-function brainStep(input, ms, reset) {
-  return new Promise((res) => { pending = res; worker.postMessage({ cmd: "live-step", ms, input, reset: !!reset }); });
 }
 
-// ---------- Quelle: Video-Datei oder Testfilm ----------
-const video = $("#video"), demoCv = $("#demoCv");
-const SW = 128, SH = 75; // Abtast-Aufloesung fuer die Augen
-const grab = document.createElement("canvas"); grab.width = SW; grab.height = SH; const gctx = grab.getContext("2d", { willReadFrequently: true });
-const thumbCv = document.createElement("canvas"); thumbCv.width = 240; thumbCv.height = 135; const tctx = thumbCv.getContext("2d");
-let source = null;
-function setSource(src) {
-  source = src; resetResults();
-  $("#screen").hidden = false; $("#controls").hidden = false;
-  video.hidden = src.kind !== "video"; demoCv.hidden = src.kind !== "demo";
-  $("#watchBtn").disabled = !brainReady; $("#playBtn").disabled = true;
-  $("#status").textContent = `${src.name} · ${tstr(src.duration)}${src.duration > MAX_SEC ? ` (die Fliege schaut die ersten ${MAX_SEC / 60} Minuten)` : ""}`;
+// =====================================================================
+// Quelle (Video-Datei oder Testfilm)
+// =====================================================================
+const video = $("#video"), demoCv = $("#demoCv"), screenEl = $("#screen");
+let src = null, eyes = null;
+const grab = document.createElement("canvas"); const gctx = grab.getContext("2d", { willReadFrequently: true });
+const thumb = document.createElement("canvas"); const tctx = thumb.getContext("2d");
+function useSource(s) {
+  stopLive(); src = s; hideWarn();
+  $("#empty").hidden = true; $("#vidTitle").textContent = `${s.name} · ${tstr(s.duration)}`;
+  video.hidden = s.kind !== "video"; demoCv.hidden = s.kind !== "demo";
+  const ar = s.w / s.h; screenEl.style.setProperty("--ar", `${s.w} / ${s.h}`); screenEl.classList.toggle("portrait", ar < 1);
+  // Augen passend zum Format; Abtastbild max. 128 Pixel lang
+  eyes = EY.makeEyes({ aspect: ar }); KI.bindEyes(eyes, VPN);
+  grab.width = ar >= 1 ? 128 : Math.round(128 * ar); grab.height = ar >= 1 ? Math.round(128 / ar) : 128;
+  thumb.width = ar >= 1 ? 240 : 135; thumb.height = ar >= 1 ? 135 : 240;
+  rec = newRecording(Math.min(s.duration, MAX_SEC)); $("#resultCard").hidden = true;
+  $("#watchBtn").disabled = !brainReady; $("#restartBtn").disabled = !brainReady;
+  $("#watchBtn").textContent = "▶ Fliege schaut live zu";
+  $("#opinion").hidden = false; setSpeedText(brainReady ? "Bereit. Drück auf ▶" : "Lade das Fliegenhirn …");
+  drawTimeline();
 }
-$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) openFile(f); });
-const drop = $("#drop");
-drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("video")) openFile(f); });
+function isVideoFile(f) { return (f.type && f.type.startsWith("video")) || /\.(mp4|m4v|mov|webm|mkv|ogv|3gp)$/i.test(f.name); }
+$("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ""; });
+for (const el of [$("#empty"), screenEl]) {
+  el.addEventListener("dragover", (e) => { e.preventDefault(); $("#empty").classList.add("over"); });
+  el.addEventListener("dragleave", () => $("#empty").classList.remove("over"));
+  el.addEventListener("drop", (e) => { e.preventDefault(); $("#empty").classList.remove("over"); const f = e.dataTransfer.files[0]; if (f && isVideoFile(f)) openFile(f); else if (f) showWarn("<b>Das ist kein Video.</b> Erlaubt sind MP4, MOV und WebM."); });
+}
+let objUrl = null;
 function openFile(f) {
-  if (video.src) URL.revokeObjectURL(video.src);
-  video.src = URL.createObjectURL(f);
-  $("#status").textContent = "Öffne " + f.name + " …"; $("#controls").hidden = false;
-  video.onloadedmetadata = async () => {
-    // manche Dateien (z. B. WebM aus Aufnahmen) kennen ihre Laenge erst nach einem Sprung ans Ende
-    if (!isFinite(video.duration)) {
-      await new Promise((res) => { const done = () => { if (isFinite(video.duration)) { video.removeEventListener("durationchange", done); res(); } }; video.addEventListener("durationchange", done); video.currentTime = 1e7; setTimeout(res, 4000); });
-      await seekVideo(0);
+  stopLive(); hideWarn(); setSpeedText("Öffne " + f.name + " …");
+  if (objUrl) URL.revokeObjectURL(objUrl);
+  objUrl = URL.createObjectURL(f);
+  video.removeAttribute("src"); video.load();
+  video.src = objUrl + "#t=0.05"; // iOS zeigt so das erste Bild
+  let done = false;
+  const fail = (why) => { if (done) return; done = true; showWarn(formatHelp(why)); setSpeedText("Video lässt sich nicht abspielen."); };
+  video.onerror = () => fail("Dein Browser kann dieses Video nicht öffnen.");
+  const t = setTimeout(() => fail("Das Video lädt nicht."), 15000);
+  video.onloadeddata = async () => {
+    if (done) return; clearTimeout(t);
+    let dur = video.duration;
+    if (!isFinite(dur)) { // z. B. WebM aus Aufnahmen: Laenge erst nach Sprung ans Ende bekannt
+      await new Promise((res) => { const h = () => { if (isFinite(video.duration)) { video.removeEventListener("durationchange", h); res(); } }; video.addEventListener("durationchange", h); video.currentTime = 1e7; setTimeout(res, 4000); });
+      dur = video.duration; video.currentTime = 0;
     }
-    if (!isFinite(video.duration) || !video.videoWidth) { $("#status").textContent = "Dieses Video kann dein Browser nicht abspielen."; return; }
-    setSource({ kind: "video", name: f.name, duration: video.duration, draw: drawVideo });
+    if (!video.videoWidth || !isFinite(dur)) return fail(video.videoWidth ? "Die Länge des Videos ist unbekannt." : "Im Video ist kein Bild, das dein Browser anzeigen kann.");
+    done = true;
+    useSource({ kind: "video", name: f.name, duration: dur, w: video.videoWidth, h: video.videoHeight });
   };
-  video.onerror = () => { $("#status").textContent = "Dieses Video kann dein Browser nicht öffnen."; };
 }
-function seekVideo(t) {
-  return new Promise((res) => {
-    if (Math.abs(video.currentTime - t) < 0.001) return res();
-    const done = () => { video.removeEventListener("seeked", done); clearTimeout(tm); res(); };
-    const tm = setTimeout(done, 1500);
-    video.addEventListener("seeked", done); video.currentTime = t;
-  });
+function formatHelp(why) {
+  return `<b>${esc(why)}</b><span>Das passiert oft bei iPhone-Videos im Format „Hohe Effizienz“ (HEVC/H.265), die nicht jeder Browser kann. So klappt es: auf dem iPhone unter <i>Einstellungen → Kamera → Formate</i> „Maximale Kompatibilität“ wählen und neu filmen, das Video als MP4 (H.264) speichern – oder in Safari bzw. Chrome mit aktuellem Update öffnen. MP4 (H.264), MOV mit H.264 und WebM funktionieren fast überall.</span>`;
 }
-async function drawVideo(t, ctx, w, h) {
-  await seekVideo(Math.min(t, Math.max(0, video.duration - 0.01)));
-  cover(ctx, video, video.videoWidth, video.videoHeight, w, h);
-}
-function cover(ctx, img, iw, ih, w, h) { const s = Math.max(w / iw, h / ih), dw = iw * s, dh = ih * s; ctx.fillStyle = "#808080"; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh); }
-// Testfilm: Wiese, kleine Fliege, ein Ball fliegt heran, Landschaft zieht vorbei
+function showWarn(html) { const w = $("#warn"); w.innerHTML = html; w.hidden = false; }
+function hideWarn() { $("#warn").hidden = true; }
+
+// Testfilm: Wiese, kleine Fliege, ein Ball fliegt heran, Schwenk, kleine Fliege rechts
 function demoFrame(ctx, w, h, t) {
   const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "#9fd0f5"); g.addColorStop(0.55, "#d9eefb"); g.addColorStop(0.56, "#6b9a3c"); g.addColorStop(1, "#4b7a2a");
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -304,88 +370,163 @@ function demoFrame(ctx, w, h, t) {
   if (t >= 8 && t < 10.5) { const k = (t - 8) / 2.5, r = w * (0.01 + 0.5 * k * k * k); ctx.fillStyle = "#14110f"; ctx.beginPath(); ctx.arc(w * 0.3, h * 0.42, r, 0, 7); ctx.fill(); }
 }
 $("#demoBtn").addEventListener("click", () => {
-  demoCv.width = 640; demoCv.height = 360; demoFrame(demoCv.getContext("2d"), 640, 360, 0);
-  setSource({ kind: "demo", name: "Testfilm (Wiese, kleine Fliegen, ein Ball fliegt heran, Schwenk)", duration: 24, draw: async (t, ctx, w, h) => demoFrame(ctx, w, h, t) });
+  demoCv.width = 960; demoCv.height = 540; demoFrame(demoCv.getContext("2d"), 960, 540, 0);
+  useSource({ kind: "demo", name: "Testfilm: kleine Fliegen, ein Ball fliegt heran, Schwenk", duration: 24, w: 960, h: 540 });
 });
 
-// ---------- Die Fliege schaut zu ----------
-let eyes = null, results = null, stopFlag = false;
-const R_KEYS = ["schreck", "interesse", "fluss", "turnL", "turnR", "hin"];
-function resetResults() { results = null; $("#resultCard").hidden = true; $("#timeline").hidden = true; $("#legend").hidden = true; drawTimeline(); }
-$("#watchBtn").addEventListener("click", watch);
-$("#stopBtn").addEventListener("click", () => { stopFlag = true; });
-async function watch() {
-  if (!source || !brainReady) return;
-  stopFlag = false; $("#watchBtn").disabled = true; $("#playBtn").disabled = true; $("#stopBtn").hidden = false; $("#progress").hidden = false;
-  $("#timeline").hidden = false; $("#legend").hidden = false;
-  eyes = EY.makeEyes();
-  const dur = Math.min(source.duration, MAX_SEC), nF = Math.floor(dur * FPS);
-  results = { n: nF, dur, t: new Float32Array(nF) }; for (const k of R_KEYS) results[k] = new Float32Array(nF);
-  results.thumbs = []; results.seconds = [];
-  await brainStep({ idx: [], rates: [] }, 20, true);
-  const sm = Object.fromEntries(R_KEYS.map((k) => [k, 0]));
-  const t0 = performance.now();
-  const ctxShow = source.kind === "demo" ? demoCv.getContext("2d") : null;
-  for (let f = 0; f < nF; f++) {
-    if (stopFlag) break;
-    const t = f / FPS;
-    await source.draw(t, gctx, SW, SH);
-    if (ctxShow) source.draw(t, ctxShow, demoCv.width, demoCv.height);
-    const img = EY.lumFromRGBA(gctx.getImageData(0, 0, SW, SH).data, SW, SH);
-    EY.sample(eyes, img); EY.step(eyes, FRAME_MS / 2); EY.step(eyes, FRAME_MS / 2);
-    const input = KI.drives(eyes, VPN);
-    const r = await brainStep(input, FRAME_MS);
-    const acc = KI.newAcc(OUT); KI.accumulate(acc, OUT, r.spikes, FRAME_MS);
-    const s = KI.summary(acc, OUT);
-    const raw = { schreck: s.schreck, interesse: Math.max(s.folgenL, s.folgenR) + 0.5 * s.hin, fluss: s.fluss, turnL: s.folgenL, turnR: s.folgenR, hin: s.hin };
-    for (const k of R_KEYS) { sm[k] += (raw[k] - sm[k]) * 0.35; results[k][f] = sm[k]; }
-    results.t[f] = t; results.done = f + 1;
-    addGlow(r.spikes); input.idx.forEach((i) => (vpnHot[i] = 1));
-    // Vorschaubild je Sekunde
-    if (f % FPS === 0) { await source.draw(t + 0.5 > dur ? t : t + 0.0, tctx, 240, 135); results.thumbs.push(thumbCv.toDataURL("image/jpeg", 0.7)); }
-    if (f % 2 === 0) {
-      drawEyes(); drawBrainLive(); updateMeters(raw); drawTimeline();
-      const spd = (t * 1000) / (performance.now() - t0);
-      $("#progress span").style.width = (f / nF * 100).toFixed(1) + "%";
-      $("#status").textContent = `Die Fliege schaut … ${tstr(t)} von ${tstr(dur)} · ${fmt1.format(spd)}× Echtzeit`;
-      showReaction(raw);
-      await new Promise((r2) => setTimeout(r2, 0));
-    }
+// =====================================================================
+// Live zuschauen
+// =====================================================================
+const L = { running: false, lastT: null, pendingMs: 0, pendingT: 0, inflight: false, input: { idx: [], rates: [] }, rate: 1, demoT: 0, lastWall: 0,
+  frames: 0, black: 0, sm: { schreck: 0, interesse: 0, fluss: 0, turnL: 0, turnR: 0, hin: 0, total: 0, da: 0 }, dopa: 1, dopaDirty: true, reset: false, lastThumb: -1 };
+let rec = null;
+function newRecording(dur) {
+  const n = Math.ceil(dur / BIN) + 1, r = { dur, n, has: new Uint8Array(n), thumbs: [], frames: 0, blackFrames: 0 };
+  for (const k of ["schreck", "interesse", "fluss", "turnL", "turnR", "hin", "total", "dopa"]) r[k] = new Float32Array(n);
+  return r;
+}
+$("#watchBtn").addEventListener("click", () => (L.running ? pauseLive() : startLive()));
+$("#restartBtn").addEventListener("click", () => { if (!src) return; const was = L.running; stopLive(); rec = newRecording(Math.min(src.duration, MAX_SEC)); seekSource(0); L.reset = true; $("#resultCard").hidden = true; drawTimeline(); if (was) startLive(); });
+async function startLive() {
+  if (!src || !brainReady) return;
+  hideWarn();
+  if (src.kind === "video") {
+    if (video.ended || video.currentTime >= src.duration - 0.05) { video.currentTime = 0; }
+    video.playbackRate = L.rate;
+    try { await video.play(); } catch (err) { showWarn(`<b>Das Video startet nicht.</b> ${esc(err.message || "")} Tippe nochmal auf ▶.`); return; }
+  } else { if (L.demoT >= src.duration - 0.05) L.demoT = 0; L.lastWall = performance.now(); }
+  L.running = true; L.lastT = null; L.frames = 0; L.blackSince = null; L.blackWarned = false;
+  $("#watchBtn").textContent = "❚❚ Pause";
+  if (src.kind === "video" && "requestVideoFrameCallback" in HTMLVideoElement.prototype) video.requestVideoFrameCallback(onVideoFrame);
+  else if (src.kind === "video") pollVideo();
+}
+function pauseLive() { L.running = false; if (src && src.kind === "video") video.pause(); $("#watchBtn").textContent = "▶ Weiter schauen"; setSpeedText("Pause"); pumpBrainIdle(); }
+function stopLive() { L.running = false; if (src && src.kind === "video") video.pause(); $("#watchBtn").textContent = "▶ Fliege schaut live zu"; pumpBrainIdle(); }
+function seekSource(t) { if (!src) return; if (src.kind === "video") video.currentTime = t; else { L.demoT = t; demoFrame(demoCv.getContext("2d"), demoCv.width, demoCv.height, t); } L.lastT = null; }
+function onVideoFrame(now, meta) {
+  if (!L.running) return;
+  processFrame(meta.mediaTime, video);
+  if (L.running) video.requestVideoFrameCallback(onVideoFrame);
+}
+function pollVideo() { // Ersatz fuer Browser ohne requestVideoFrameCallback
+  if (!L.running) return;
+  if (video.currentTime !== L.lastT) processFrame(video.currentTime, video);
+  requestAnimationFrame(pollVideo);
+}
+video.addEventListener("ended", () => { if (L.running) finishLive(); });
+function demoTick(now) {
+  if (L.running && src && src.kind === "demo") {
+    L.demoT += (now - L.lastWall) / 1000 * L.rate; L.lastWall = now;
+    if (L.demoT >= src.duration) { L.demoT = src.duration; finishLive(); }
+    else { demoFrame(demoCv.getContext("2d"), demoCv.width, demoCv.height, L.demoT); processFrame(L.demoT, demoCv); }
   }
-  $("#stopBtn").hidden = true; $("#progress").hidden = true; $("#watchBtn").disabled = false; $("#watchBtn").textContent = "Nochmal zuschauen";
-  if (results.done > FPS) { judge(); $("#playBtn").disabled = false; }
-  $("#status").textContent = stopFlag ? "Abgebrochen – Urteil über den gesehenen Teil." : "Fertig. Hier ist ihr Urteil.";
-  drawTimeline();
+}
+function processFrame(t, el) {
+  try {
+    const dt = L.lastT == null ? 40 : (t - L.lastT) * 1000;
+    if (L.lastT != null && (dt <= 0 || dt > 600)) { L.lastT = t; return; } // Sprung im Video
+    L.lastT = t;
+    // Bild in die Augen
+    gctx.drawImage(el, 0, 0, grab.width, grab.height);
+    const img = EY.lumFromRGBA(gctx.getImageData(0, 0, grab.width, grab.height).data, grab.width, grab.height);
+    L.frames++; if (rec) { rec.frames++; if (img.mean < 0.025 && img.sd < 0.012) rec.blackFrames++; }
+    if (img.mean < 0.025 && img.sd < 0.012) { if (L.blackSince == null) L.blackSince = t; if (!L.blackWarned && t - L.blackSince >= 4) { L.blackWarned = true; showWarn(formatHelp("Die Fliege sieht seit 4 Sekunden nur Schwarz – vermutlich liefert dein Browser keine Bilder aus diesem Video.")); } }
+    else { L.blackSince = null; if (L.blackWarned) { L.blackWarned = false; hideWarn(); } }
+    EY.sample(eyes, img); EY.step(eyes, clamp(dt, 5, 100));
+    L.input = KI.drives(eyes, VPN);
+    L.pendingMs += clamp(dt, 0, 120); L.pendingT = t;
+    // Vorschaubild je Sekunde
+    const sec = Math.floor(t);
+    if (sec !== L.lastThumb && rec && sec < rec.dur) { L.lastThumb = sec; tctx.drawImage(el, 0, 0, thumb.width, thumb.height); rec.thumbs[sec] = thumb.toDataURL("image/jpeg", 0.72); }
+    pumpBrain();
+  } catch (err) { console.error(err); showWarn(`<b>Fehler beim Lesen des Videos:</b> ${esc(err.message)}`); pauseLive(); }
+}
+function pumpBrain() {
+  if (L.inflight || L.pendingMs < 20 || !worker) return;
+  // Gehirn haengt hinterher? Dann Video langsamer, statt zu ruckeln
+  if (L.pendingMs > 260) setRate(L.rate * 0.85); else if (L.pendingMs < 60 && L.rate < 1) setRate(L.rate * 1.04);
+  if (L.pendingMs > 500) L.pendingMs = 500;
+  const ms = Math.min(200, Math.round(L.pendingMs / 20) * 20); L.pendingMs -= ms;
+  const t = L.pendingT, st = S.dopamineState(L.dopa);
+  const input = { idx: L.input.idx.slice(), rates: L.input.rates.slice() };
+  if (st.tonicHz > 0) for (const i of DA.da) { input.idx.push(i); input.rates.push(st.tonicHz); }
+  const msg = { cmd: "live-step", ms, input };
+  if (L.dopaDirty) { msg.modLvl = st.modLvl; L.dopaDirty = false; }
+  if (L.reset) { msg.reset = true; L.reset = false; }
+  L.inflight = true;
+  onBrain = (r) => { L.inflight = false; onSpikes(r, t, ms); pumpBrain(); };
+  worker.postMessage(msg);
+}
+function setRate(r) { L.rate = clamp(r, 0.25, 1); if (src && src.kind === "video") video.playbackRate = L.rate; }
+function onSpikes(r, t, ms) {
+  const acc = KI.newAcc(OUT); KI.accumulate(acc, OUT, r.spikes, ms);
+  const s = KI.summary(acc, OUT);
+  const raw = { schreck: s.schreck, interesse: Math.max(s.folgenL, s.folgenR) + 0.5 * s.hin, fluss: s.fluss, turnL: s.folgenL, turnR: s.folgenR, hin: s.hin, total: s.total, da: s.da };
+  const a = 1 - Math.exp(-ms / 120);
+  for (const k in raw) L.sm[k] += (raw[k] - L.sm[k]) * a;
+  if (rec && L.running) { const b = Math.min(rec.n - 1, Math.floor(t / BIN)); rec.has[b] = 1; for (const k of ["schreck", "interesse", "fluss", "turnL", "turnR", "hin", "total"]) rec[k][b] = L.sm[k]; rec.dopa[b] = L.dopa; }
+  addGlow(r.spikes);
+  L.speedText = L.rate < 0.97 ? `Zeitlupe ×${fmt1.format(L.rate)} – das Gehirn rechnet` : "live, Echtzeit";
+}
+function finishLive() {
+  L.running = false; $("#watchBtn").textContent = "▶ Nochmal live zuschauen";
+  if (src && src.kind === "video") video.pause();
+  pumpBrainIdle();
+  setTimeout(() => { judge(); setSpeedText("Fertig – hier ist ihr Urteil."); }, 250);
+}
+function setSpeedText(t) { $("#speed").textContent = t; }
+
+// =====================================================================
+// Dopamin
+// =====================================================================
+const dopaNames = (v) => (v < 0.05 ? "keins (wie 3IY)" : v < 0.85 ? `wenig (×${fmt1.format(v)})` : v <= 1.15 ? "normal (×1)" : v < 2.5 ? `mehr (×${fmt1.format(v)}, wie L-DOPA)` : `sehr viel (×${fmt1.format(v)})`);
+function setDopa(v) {
+  L.dopa = v; L.dopaDirty = true; $("#dopa").value = Math.round(v * 100); $("#dopaVal").textContent = dopaNames(v);
+  document.querySelectorAll("[data-dopa]").forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.dopa / 100 - v) < 0.05)));
+  if (!L.running && brainReady) { pumpBrainIdle(); }
+}
+$("#dopa").addEventListener("input", (e) => setDopa(+e.target.value / 100));
+document.querySelectorAll("[data-dopa]").forEach((b) => b.addEventListener("click", () => setDopa(+b.dataset.dopa / 100)));
+// auch ohne Video soll man sehen, wie das Gehirn auf Dopamin reagiert
+let idleTimer = 0;
+function pumpBrainIdle() {
+  clearTimeout(idleTimer);
+  if (L.running || !brainReady) return;
+  L.pendingMs = Math.max(L.pendingMs, 60); L.input = { idx: [], rates: [] }; L.speedText = ""; pumpBrain();
+  idleTimer = setTimeout(pumpBrainIdle, 120);
 }
 
-// ---------- Urteil ----------
+// =====================================================================
+// Urteil
+// =====================================================================
 function judge() {
-  const n = results.done, secs = Math.floor(n / FPS), per = [];
+  if (!rec) return;
+  const secs = Math.floor(rec.dur), per = [], per1 = Math.round(1 / BIN);
   for (let s = 0; s < secs; s++) {
-    let sch = 0, int = 0, flu = 0, tl = 0, tr = 0, hin = 0, peakS = 0;
-    for (let f = s * FPS; f < (s + 1) * FPS; f++) { sch += results.schreck[f]; int += results.interesse[f]; flu += results.fluss[f]; tl += results.turnL[f]; tr += results.turnR[f]; hin += results.hin[f]; peakS = Math.max(peakS, results.schreck[f]); }
-    sch /= FPS; int /= FPS; flu /= FPS; tl /= FPS; tr /= FPS; hin /= FPS;
-    const score = int / 8 + flu / 120 - 2 * sch / 4;
-    per.push({ s, sch, int, flu, tl, tr, hin, peakS, score });
+    let n = 0, sch = 0, int = 0, flu = 0, tl = 0, tr = 0, hin = 0, peak = 0;
+    for (let b = s * per1; b < (s + 1) * per1 && b < rec.n; b++) { if (!rec.has[b]) continue; n++; sch += rec.schreck[b]; int += rec.interesse[b]; flu += rec.fluss[b]; tl += rec.turnL[b]; tr += rec.turnR[b]; hin += rec.hin[b]; peak = Math.max(peak, rec.schreck[b]); }
+    if (!n) continue;
+    sch /= n; int /= n; flu /= n; tl /= n; tr /= n; hin /= n;
+    per.push({ s, sch, int, flu, tl, tr, hin, peak, score: int / 8 + flu / 120 - sch / 2 });
   }
-  results.seconds = per;
+  rec.seconds = per;
+  if (!per.length) return;
+  const merge = (list) => { const used = new Set(), out = []; for (const p of list) { if (used.has(p.s)) continue; let u = p.s; while (list.find((q) => q.s === u + 1) && !used.has(u + 1)) { u++; used.add(u); } used.add(p.s); out.push(Object.assign({}, p, { until: u })); } return out; };
   const best = merge(per.filter((p) => p.score > 0.25).sort((a, b) => b.score - a.score)).slice(0, 4);
   const worst = merge(per.filter((p) => p.sch > 1.2).sort((a, b) => b.sch - a.sch)).slice(0, 4);
-  const meanScore = per.reduce((a, p) => a + p.score, 0) / Math.max(1, per.length);
+  const mean = per.reduce((a, p) => a + p.score, 0) / per.length;
   const scary = per.filter((p) => p.sch > 1.2).length, good = per.filter((p) => p.score > 0.25).length;
   let title, text;
-  if (scary >= Math.max(2, per.length * 0.25)) { title = "Gruselfilm!"; text = `In ${scary} von ${per.length} Sekunden feuern Riesenfaser und Flucht-Neuronen – sie wäre am liebsten weggesprungen.`; }
-  else if (good >= Math.max(2, per.length * 0.2)) { title = "Spannend!"; text = `In ${good} von ${per.length} Sekunden will sie sich etwas zuwenden oder hinlaufen.${scary ? ` Nur ${scary === 1 ? "einmal" : scary + "-mal"} hat sie sich erschreckt.` : " Und keine einzige Schreckstelle."}`; }
+  if (rec.frames > 20 && rec.blackFrames > 0.85 * rec.frames) { title = "Die Fliege konnte nichts sehen."; text = "Fast alle Bilder kamen schwarz bei ihr an – dein Browser kann dieses Videoformat vermutlich nicht entschlüsseln (Tipp oben im roten Kasten)."; }
+  else if (scary >= Math.max(2, per.length * 0.25)) { title = "Gruselfilm!"; text = `In ${scary} von ${per.length} Sekunden feuern Riesenfaser und Flucht-Neuronen – sie wäre am liebsten weggesprungen.`; }
+  else if (good >= Math.max(2, per.length * 0.2)) { title = "Spannend!"; text = `In ${good} von ${per.length} Sekunden will sie sich etwas zuwenden oder hinlaufen.${scary ? ` ${scary === 1 ? "Einmal" : scary + "-mal"} hat sie sich erschreckt.` : " Und kein einziger Schreck."}`; }
   else if (per.every((p) => p.int < 1 && p.sch < 0.3 && p.flu < 15)) { title = "Langweilig."; text = "Kaum etwas bewegt sich so, dass ihr Gehirn reagiert. Für eine Fliege ist ein ruhiges Bild nichts Besonderes."; }
-  else { title = "Geht so."; text = `Ein paar interessante Stellen, ${scary ? scary + " Schreckmoment(e)" : "keine Schreckmomente"}, viel Bildfluss.`; }
-  $("#verdict").innerHTML = `<span class="big">${esc(title)}</span><span>${esc(text)}</span><span class="note">Durchschnittliche Note: ${Math.abs(meanScore) < 0.05 ? "±0" : (meanScore > 0 ? "+" : "−") + fmt1.format(Math.abs(meanScore))} (über 0 = mag sie)</span>`;
-  const card = (p, kind) => {
-    const why = kind === "good" ? reasonGood(p) : `Riesenfaser/Flucht ${fmt1.format(p.peakS)} Hz – etwas wird schnell größer.`;
-    const thumb = results.thumbs[p.s] || "";
-    return `<button class="moment" data-seek="${p.s}"><img src="${thumb}" alt="Bild bei ${tstr(p.s)}"><span><span class="tag ${kind === "good" ? "good" : "bad"}">${tstr(p.s)}${p.until > p.s ? "–" + tstr(p.until + 1) : ""}</span></span><b>${esc(why)}</b><small>Interesse ${fmt1.format(p.int)} · Schreck ${fmt1.format(p.sch)} · Bildfluss ${fmt0.format(p.flu)}</small></button>`;
-  };
-  $("#best").innerHTML = best.length ? best.map((p) => card(p, "good")).join("") : `<p class="note">Keine Stelle, die sie wirklich gut findet.</p>`;
-  $("#worst").innerHTML = worst.length ? worst.map((p) => card(p, "bad")).join("") : `<p class="note">Keine Schreckstelle – entspannter Film für eine Fliege.</p>`;
+  else { title = "Geht so."; text = `${good ? good + " interessante Sekunde(n)" : "Wenig Interessantes"}, ${scary ? scary + " Schreckmoment(e)" : "kein Schreck"}.`; }
+  const dopaUsed = [...new Set(Array.from(rec.dopa).filter((v, b) => rec.has[b]).map((v) => Math.round(v * 10) / 10))];
+  $("#verdict").innerHTML = `<span class="big">${esc(title)}</span><span>${esc(text)}</span><span class="note">Note ${Math.abs(mean) < 0.05 ? "±0" : (mean > 0 ? "+" : "−") + fmt1.format(Math.abs(mean))} (über 0 = mag sie) · Dopamin dabei: ${dopaUsed.map((v) => "×" + fmt1.format(v)).join(", ")}</span>`;
+  const card = (p, kind) => `<button class="moment" data-seek="${p.s}"><img src="${rec.thumbs[p.s] || ""}" alt="Bild bei ${tstr(p.s)}"><span><span class="tag ${kind}">${tstr(p.s)}${p.until > p.s ? "–" + tstr(p.until + 1) : ""}</span></span><b>${esc(kind === "good" ? reasonGood(p) : `Schreck: Riesenfaser und Flucht-Neuronen bis ${fmt1.format(p.peak)} Hz – etwas wird schnell größer.`)}</b><small>Interesse ${fmt1.format(p.int)} · Schreck ${fmt1.format(p.sch)} · Bildfluss ${fmt0.format(p.flu)}</small></button>`;
+  $("#best").innerHTML = best.length ? best.map((p) => card(p, "good")).join("") : `<p class="note" style="grid-column:1/-1">Keine Stelle, die sie wirklich gut findet.</p>`;
+  $("#worst").innerHTML = worst.length ? worst.map((p) => card(p, "bad")).join("") : `<p class="note" style="grid-column:1/-1">Kein Schreck – entspannter Film für eine Fliege.</p>`;
   $("#resultCard").hidden = false;
 }
 function reasonGood(p) {
@@ -394,102 +535,62 @@ function reasonGood(p) {
   if (p.int > 2) return "Kleine bewegte Dinge – genau ihr Ding.";
   return "Viel Bewegung, aber nichts Gefährliches.";
 }
-function merge(list) { // benachbarte Sekunden zusammenfassen
-  const used = new Set(), out = [];
-  for (const p of list) { if (used.has(p.s)) continue; let u = p.s; while (list.find((q) => q.s === u + 1) && !used.has(u + 1)) { u++; used.add(u); } used.add(p.s); out.push(Object.assign({}, p, { until: u })); }
-  return out;
-}
-document.addEventListener("click", (e) => { const b = e.target.closest("[data-seek]"); if (b) seekTo(+b.dataset.seek); });
-function seekTo(s) {
-  $("#screen").scrollIntoView({ behavior: "smooth", block: "center" });
-  if (source.kind === "video") { video.currentTime = s; } else { playT = s; source.draw(s, demoCv.getContext("2d"), demoCv.width, demoCv.height); }
-  showReactionAt(s); drawTimeline(); viewEyesUpdate(s, true);
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-seek]"); if (b) { screenEl.scrollIntoView({ behavior: "smooth", block: "center" }); jumpTo(+b.dataset.seek); } });
+function jumpTo(t) { if (!src) return; seekSource(t); if (!L.running) showRecordedAt(t); drawTimeline(); }
+function showRecordedAt(t) {
+  if (!rec) return; const b = Math.min(rec.n - 1, Math.max(0, Math.floor(t / BIN))); if (!rec.has[b]) return;
+  showReaction({ schreck: rec.schreck[b], interesse: rec.interesse[b], fluss: rec.fluss[b], turnL: rec.turnL[b], turnR: rec.turnR[b], hin: rec.hin[b] });
 }
 
-// ---------- Abspielen mit Reaktionen ----------
-let playing = false, playT = 0, playStart = 0;
-$("#playBtn").addEventListener("click", () => {
-  if (playing) { stopPlay(); return; }
-  playing = true; $("#playBtn").textContent = "❚❚ Pause";
-  if (source.kind === "video") { if (video.currentTime >= results.dur - 0.05) video.currentTime = 0; video.play(); }
-  else { if (playT >= results.dur - 0.05) playT = 0; playStart = performance.now() - playT * 1000; }
-  requestAnimationFrame(playLoop);
-});
-function stopPlay() { playing = false; $("#playBtn").textContent = "▶ Abspielen mit Reaktionen"; if (source.kind === "video") video.pause(); }
-function playLoop() {
-  if (!playing) return;
-  let t;
-  if (source.kind === "video") t = video.currentTime; else { t = (performance.now() - playStart) / 1000; playT = t; source.draw(t, demoCv.getContext("2d"), demoCv.width, demoCv.height); }
-  if (t >= results.dur - 0.02 || (source.kind === "video" && video.ended)) { stopPlay(); }
-  showReactionAt(t); drawTimeline();
-  if (++playFrame % 2 === 0) viewEyesUpdate(t, false);
-  requestAnimationFrame(playLoop);
-}
-let playFrame = 0, viewEyes = null;
-// zeigt im Fliegenblick das Bild, das gerade im Video zu sehen ist
-async function viewEyesUpdate(t, seek) {
-  if (!viewEyes) viewEyes = EY.makeEyes();
-  if (source.kind === "video") { if (seek) await seekVideo(t); cover(gctx, video, video.videoWidth, video.videoHeight, SW, SH); }
-  else await source.draw(t, gctx, SW, SH);
-  EY.sample(viewEyes, EY.lumFromRGBA(gctx.getImageData(0, 0, SW, SH).data, SW, SH)); EY.step(viewEyes, 40);
-  drawEyes(viewEyes);
-}
-function showReactionAt(t) { if (!results) return; const f = Math.min(results.done - 1, Math.max(0, Math.round(t * FPS))); showReaction({ schreck: results.schreck[f], interesse: results.interesse[f], fluss: results.fluss[f], turnL: results.turnL[f], turnR: results.turnR[f] }); updateMeters(Object.fromEntries(R_KEYS.map((k) => [k, results[k][f]]))); }
+// =====================================================================
+// Anzeigen
+// =====================================================================
 function showReaction(r) {
-  const pills = [];
-  if (r.schreck > 1.5) pills.push(`<span class="pill bad">Schreck! Riesenfaser feuert</span>`);
-  if (r.interesse > 2) pills.push(`<span class="pill good">${r.turnL > r.turnR + 1 ? "← schaut nach links" : r.turnR > r.turnL + 1 ? "schaut nach rechts →" : "interessiert"}</span>`);
-  if (r.fluss > 20) pills.push(`<span class="pill">Bildfluss</span>`);
-  $("#reaction").innerHTML = pills.join("");
+  const p = [];
+  if (r.schreck > 1.5) p.push(`<span class="pill bad">Schreck! Riesenfaser feuert</span>`);
+  if (r.interesse > 2) p.push(`<span class="pill good">${r.turnL > r.turnR + 1 ? "← schaut nach links" : r.turnR > r.turnL + 1 ? "schaut nach rechts →" : "interessiert"}</span>`);
+  if (r.hin > 1) p.push(`<span class="pill good">will hinlaufen</span>`);
+  if (r.fluss > 20) p.push(`<span class="pill">Bildfluss</span>`);
+  if (L.dopa > 1.15) p.push(`<span class="pill dopa">Dopamin ×${fmt1.format(L.dopa)}</span>`); else if (L.dopa < 0.85) p.push(`<span class="pill dopa">wenig Dopamin</span>`);
+  if (L.running && L.rate < 0.97) p.push(`<span class="pill slow">Zeitlupe ×${fmt1.format(L.rate)}</span>`);
+  $("#pills").innerHTML = p.join("");
+  const score = clamp(r.interesse / 8 + r.fluss / 120 - r.schreck / 2, -1, 1);
+  $("#opMarker").style.left = (50 + score * 46) + "%";
 }
-
-// ---------- Zeitleiste ----------
-const tl = $("#timeline"), tlc = tl.getContext("2d");
-function drawTimeline() {
-  if (tl.hidden) return;
-  const r = tl.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
-  tl.width = Math.round(r.width * pr); tl.height = Math.round(r.height * pr); tlc.setTransform(pr, 0, 0, pr, 0, 0);
-  const w = r.width, h = r.height; tlc.clearRect(0, 0, w, h);
-  if (!results) return;
-  const cs = getComputedStyle(document.documentElement), col = (v) => cs.getPropertyValue(v).trim();
-  const n = results.done || 0, dur = results.dur, X = (t) => 8 + t / dur * (w - 16);
-  // Urteil je Sekunde
-  for (const p of results.seconds || []) { tlc.fillStyle = p.sch > 1.2 ? col("--bad") : p.score > 0.25 ? col("--good") : col("--line"); tlc.globalAlpha = p.sch > 1.2 || p.score > 0.25 ? 0.85 : 0.6; tlc.fillRect(X(p.s) + 0.5, 6, Math.max(1, X(p.s + 1) - X(p.s) - 1), 10); }
-  tlc.globalAlpha = 1;
-  const plot = (key, color, max) => { tlc.strokeStyle = color; tlc.lineWidth = 1.6; tlc.beginPath(); for (let f = 0; f < n; f++) { const x = X(f / FPS), y = h - 18 - Math.min(1, results[key][f] / max) * (h - 44); f ? tlc.lineTo(x, y) : tlc.moveTo(x, y); } tlc.stroke(); };
-  plot("fluss", col("--flow"), 80); plot("interesse", col("--good"), 20); plot("schreck", col("--bad"), 8);
-  tlc.fillStyle = col("--muted"); tlc.font = `12px ${cs.getPropertyValue("--font-body")}`;
-  for (let s = 0; s <= dur; s += Math.max(1, Math.round(dur / 8))) tlc.fillText(tstr(s), Math.min(X(s), w - 30), h - 4);
-  const cur = source && source.kind === "video" ? video.currentTime : playT;
-  tlc.fillStyle = col("--accent"); tlc.fillRect(X(Math.min(cur, dur)) - 1, 0, 2, h - 14);
+const METERS = [["schreck", "Schreck (Riesenfaser + Flucht)", "--bad", 8], ["turnL", "Hinwenden links (DNa02)", "--good", 25], ["turnR", "Hinwenden rechts (DNa02)", "--good", 25], ["hin", "Hinlaufen (DNp09)", "--good", 10], ["fluss", "Bildfluss (HS/VS)", "--flow", 80]];
+let meterEls = [];
+function renderMeters() {
+  $("#meters").innerHTML = METERS.map((m) => `<div class="meter" data-m="${m[0]}"><span>${m[1]}</span><span class="val">0</span><div class="track"><span style="background:var(${m[2]})"></span></div></div>`).join("");
+  meterEls = METERS.map((m) => { const el = document.querySelector(`[data-m="${m[0]}"]`); return [m, el.querySelector(".val"), el.querySelector(".track span")]; });
 }
-tl.addEventListener("pointerdown", (e) => { if (!results || !results.done) return; const r = tl.getBoundingClientRect(); const t = Math.max(0, Math.min(results.dur, (e.clientX - r.left - 8) / (r.width - 16) * results.dur)); seekTo(t); });
-window.addEventListener("resize", drawTimeline);
-
-// ---------- Fliegenblick ----------
+function updateMeters() {
+  for (const [m, val, bar] of meterEls) { const v = L.sm[m[0]] || 0; val.textContent = fmt1.format(v) + " Hz"; bar.style.width = Math.min(100, v / m[3] * 100) + "%"; }
+  $("#statTotal").textContent = fmt0.format(L.sm.total); $("#statDa").textContent = fmt1.format(L.sm.da) + " Hz";
+}
+// Fliegenblick
 const ec = $("#eyeCv"), ectx = ec.getContext("2d");
-function drawEyes(E) {
-  E = E || eyes; if (!E) return; const eyes_ = E;
+function drawEyes() {
   const r = ec.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
   if (ec.width !== Math.round(r.width * pr)) { ec.width = Math.round(r.width * pr); ec.height = Math.round(r.height * pr); }
   const w = ec.width, h = ec.height; ectx.fillStyle = "#070a12"; ectx.fillRect(0, 0, w, h);
-  const half = w / 2, sx = (half - 16) / 70, sy = (h - 16) / 70, rad = Math.min(sx, sy) * 2.6;
-  const loomL = new Map();
-  for (let i = 0; i < eyes_.n; i++) {
-    const o = eyes_.om[i];
-    const x0 = o.eye === "L" ? 8 + (60 - o.az) * sx : half + 8 + (10 - o.az) * sx, y0 = 8 + (35 - o.el) * sy + ((o.az / 5) % 2 ? sy * 2.5 : 0);
-    const L = Math.max(0, Math.min(1, eyes_.L[i])), v = Math.round(L * 235);
-    const mv = Math.hypot(eyes_.mx[i], eyes_.my[i]) * 4e3, ch = Math.abs(eyes_.A[i]);
-    ectx.fillStyle = `rgb(${v},${v},${v})`; ectx.beginPath(); ectx.arc(x0, y0, rad, 0, 7); ectx.fill();
-    if (eyes_.off[i] > 0.12 && mv > 0.3) { ectx.fillStyle = `rgba(255,70,60,${Math.min(0.85, eyes_.off[i] * 2)})`; ectx.beginPath(); ectx.arc(x0, y0, rad, 0, 7); ectx.fill(); }
-    else if (ch > 0.15 && mv > 0.15) { ectx.fillStyle = `rgba(60,230,170,${Math.min(0.8, ch * 2)})`; ectx.beginPath(); ectx.arc(x0, y0, rad, 0, 7); ectx.fill(); }
+  if (!eyes) return;
+  const FA = eyes.fieldAz + 10, FE = eyes.fieldEl * 2, half = w / 2, sx = (half - 14) / FA, sy = (h - 14) / FE, s = Math.min(sx, sy), rad = s * 2.4;
+  const ox = (half - FA * s) / 2, oy = (h - FE * s) / 2;
+  for (let i = 0; i < eyes.n; i++) {
+    const left = eyes.eye[i] === 0, a = eyes.az[i];
+    const x0 = left ? ox + (eyes.fieldAz - a) * s : half + ox + (10 - a) * s, y0 = oy + (eyes.fieldEl - eyes.el[i]) * s;
+    const v = Math.round(clamp(eyes.L[i], 0, 1) * 230) + 10;
+    let col = `rgb(${v},${v},${v})`;
+    const mv = Math.hypot(eyes.mx[i], eyes.my[i]) * 4e3;
+    if (eyes.off[i] > 0.12 && mv > 0.3) col = `rgb(${Math.min(255, 150 + v)},70,60)`;
+    else if (eyes.small[i] > 0.05) col = `rgb(60,${Math.min(255, 170 + v / 3)},160)`;
+    ectx.fillStyle = col; ectx.beginPath(); ectx.arc(x0, y0, rad, 0, 6.2832); ectx.fill();
   }
-  ectx.fillStyle = "rgba(255,255,255,.18)"; ectx.fillRect(half - 1, 6, 2, h - 12);
+  ectx.fillStyle = "rgba(255,255,255,.16)"; ectx.fillRect(half - 1, 6, 2, h - 12);
 }
-
-// ---------- Gehirn live ----------
+// Gehirn live
 const bcv = $("#brainCv"), bctx = bcv.getContext("2d");
-let bImg = null, bBase = null, bW = 0, bH = 0, bProj = null; const glow = { val: null, list: [], flag: null }; const vpnHot = {};
+let bImg = null, bBase = null, bW = 0, bH = 0, bProj = null; const glow = { val: null, list: [], flag: null };
 function resizeBrain() {
   const r = bcv.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
   bW = Math.max(1, Math.round(r.width * pr)); bH = Math.max(1, Math.round(r.height * pr)); bcv.width = bW; bcv.height = bH;
@@ -499,25 +600,61 @@ function resizeBrain() {
   for (let o = 0; o < bBase.length; o += 4) { bBase[o] = 7; bBase[o + 1] = 10; bBase[o + 2] = 18; bBase[o + 3] = 255; }
   for (let i = 0; i < D.N; i++) { const x = (bW / 2 + D.bx[i] * sc) | 0, y = (bH / 2 + D.by[i] * sc) | 0; if (x < 0 || y < 0 || x >= bW - 1 || y >= bH - 1) { bProj[i] = -1; continue; } const o = (y * bW + x) * 4; bProj[i] = o; bBase[o] += 9; bBase[o + 1] += 12; bBase[o + 2] += 22; }
 }
-function addGlow(sp) { if (!glow.val) { glow.val = new Float32Array(D.N); glow.flag = new Uint8Array(D.N); } const cap = Math.min(sp.length, 30000); for (let n = 0; n < cap; n++) { const i = sp[n]; glow.val[i] = Math.min(2, glow.val[i] + 0.8); if (!glow.flag[i]) { glow.flag[i] = 1; glow.list.push(i); } } }
-function drawBrainLive() {
+function addGlow(sp) { if (!glow.val) { glow.val = new Float32Array(D.N); glow.flag = new Uint8Array(D.N); } const cap = Math.min(sp.length, 40000); for (let n = 0; n < cap; n++) { const i = sp[n]; glow.val[i] = Math.min(2, glow.val[i] + 0.8); if (!glow.flag[i]) { glow.flag[i] = 1; glow.list.push(i); } } }
+function drawBrain() {
   if (!bImg) return; const d = bImg.data; d.set(bBase); const keep = [];
-  for (const i of glow.list) { const g = (glow.val[i] *= 0.8); if (g < 0.04) { glow.flag[i] = 0; glow.val[i] = 0; continue; } keep.push(i); const o = bProj[i]; if (o < 0) continue; const a = Math.min(1, g), v = D.isVPN[i];
-    for (const off of [0, 4, bW * 4, bW * 4 + 4]) { const q = o + off; d[q] += (v ? 80 : 255) * a; d[q + 1] += (v ? 230 : 200) * a; d[q + 2] += (v ? 255 : 90) * a; } }
+  for (const i of glow.list) {
+    const g = (glow.val[i] *= 0.82); if (g < 0.04) { glow.flag[i] = 0; glow.val[i] = 0; continue; } keep.push(i);
+    const o = bProj[i]; if (o < 0) continue; const a = Math.min(1, g), k = D.kind[i];
+    const cr = k === 2 ? 255 : k === 1 ? 90 : 255, cg = k === 2 ? 80 : k === 1 ? 230 : 200, cb = k === 2 ? 220 : k === 1 ? 255 : 90;
+    for (const off of [0, 4, bW * 4, bW * 4 + 4]) { const q = o + off; d[q] += cr * a; d[q + 1] += cg * a; d[q + 2] += cb * a; }
+  }
   glow.list = keep; bctx.putImageData(bImg, 0, 0);
+  $("#brainNote").textContent = "pink = Dopamin, blau = Sehneuronen";
 }
-const METERS = [["Gehirn → Körper"], ["schreck", "Schreck (Riesenfaser + Flucht)", "--bad", 8], ["turnL", "Hinwenden links (DNa02)", "--good", 25], ["turnR", "Hinwenden rechts (DNa02)", "--good", 25], ["hin", "Hinlaufen (DNp09)", "--good", 10], ["fluss", "Bildfluss (HS/VS)", "--flow", 80]];
-let meterEls = [];
-function renderMeters() {
-  $("#meters").innerHTML = METERS.map((m) => m.length === 1 ? `<div class="sect">${m[0]}</div>` : `<div class="meter" data-m="${m[0]}"><span>${m[1]}</span><span class="val">0</span><div class="track"><span style="background:var(${m[2]})"></span></div></div>`).join("");
-  meterEls = [...document.querySelectorAll("[data-m]")].map((el) => [METERS.find((x) => x[0] === el.dataset.m), el.querySelector(".val"), el.querySelector(".track span")]);
+// Zeitleiste
+const tl = $("#timeline"), tlc = tl.getContext("2d");
+function drawTimeline() {
+  const r = tl.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
+  if (tl.width !== Math.round(r.width * pr) || tl.height !== Math.round(r.height * pr)) { tl.width = Math.round(r.width * pr); tl.height = Math.round(r.height * pr); }
+  tlc.setTransform(pr, 0, 0, pr, 0, 0); const w = r.width, h = r.height; tlc.clearRect(0, 0, w, h);
+  if (!rec) { tlc.fillStyle = "#9aa5c2"; tlc.font = "13px sans-serif"; tlc.fillText("Hier erscheinen live die Reaktionen der Fliege.", 12, h / 2); return; }
+  const X = (t) => 8 + t / rec.dur * (w - 16);
+  for (const p of rec.seconds || []) { tlc.fillStyle = p.sch > 1.2 ? "#ff6b6b" : p.score > 0.25 ? "#3fd0c4" : "#2a3350"; tlc.fillRect(X(p.s) + 0.5, 4, Math.max(1, X(p.s + 1) - X(p.s) - 1), 8); }
+  // Dopamin-Band
+  for (let b = 0; b < rec.n; b++) if (rec.has[b] && Math.abs(rec.dopa[b] - 1) > 0.05) { tlc.fillStyle = rec.dopa[b] > 1 ? `rgba(224,127,208,${Math.min(0.8, (rec.dopa[b] - 1) * 0.4)})` : "rgba(120,130,160,.6)"; tlc.fillRect(X(b * BIN), h - 22, Math.max(1, X((b + 1) * BIN) - X(b * BIN)), 4); }
+  const plot = (key, color, max) => { tlc.strokeStyle = color; tlc.lineWidth = 1.6; tlc.beginPath(); let started = false; for (let b = 0; b < rec.n; b++) { if (!rec.has[b]) { started = false; continue; } const x = X(b * BIN), y = h - 26 - Math.min(1, rec[key][b] / max) * (h - 44); if (!started) { tlc.moveTo(x, y); started = true; } else tlc.lineTo(x, y); } tlc.stroke(); };
+  plot("fluss", "#8f9ab8", 80); plot("interesse", "#3fd0c4", 20); plot("schreck", "#ff6b6b", 8);
+  tlc.fillStyle = "#9aa5c2"; tlc.font = "11.5px sans-serif";
+  const stepS = Math.max(1, Math.round(rec.dur / 8)); for (let s = 0; s <= rec.dur; s += stepS) tlc.fillText(tstr(s), Math.min(X(s), w - 30), h - 4);
+  const cur = src ? (src.kind === "video" ? video.currentTime : L.demoT) : 0;
+  tlc.fillStyle = "#ffffff"; tlc.fillRect(X(Math.min(cur, rec.dur)) - 1, 0, 2, h - 16);
 }
-function updateMeters(r) { for (const [m, val, bar] of meterEls) { const v = r[m[0]] || 0; val.textContent = fmt1.format(v) + " Hz"; bar.style.width = Math.min(100, v / m[3] * 100) + "%"; } }
+tl.addEventListener("pointerdown", (e) => { if (!rec || !src) return; const r = tl.getBoundingClientRect(); jumpTo(clamp((e.clientX - r.left - 8) / (r.width - 16), 0, 1) * rec.dur); });
 
-window.KINODEBUG = () => results;
-// ---------- Start ----------
-loadBrain().then(() => { $("#watchBtn").disabled = !source; $("#status").textContent = source ? $("#status").textContent : "Gehirn bereit – wähle ein Video oder den Testfilm."; })
-  .catch((e) => { console.error(e); $("#status").textContent = location.protocol === "file:" ? "Bitte über einen Webserver öffnen (python3 -m http.server)." : "Laden fehlgeschlagen: " + e.message; $("#controls").hidden = false; });
+// eine Darstellungs-Schleife fuer alles Sichtbare
+let frame = 0;
+function render(now) {
+  frame++;
+  demoTick(now);
+  if (frame % 2 === 0) { drawEyes(); drawBrain(); }
+  if (frame % 3 === 0) { updateMeters(); if (L.running) { showReaction(L.sm); setSpeedText(L.speedText || "live"); } }
+  if (frame % 6 === 0) drawTimeline();
+  requestAnimationFrame(render);
+}
+new ResizeObserver(() => { resizeBrain(); drawTimeline(); }).observe(document.body);
+document.addEventListener("visibilitychange", () => { if (document.hidden && L.running) pauseLive(); });
+
+// =====================================================================
+// Start
+// =====================================================================
+renderMeters(); requestAnimationFrame(render); drawTimeline();
+loadBrain().then(() => {
+  resizeBrain(); setSpeedText(src ? "Bereit. Drück auf ▶" : "Gehirn bereit – wähle ein Video oder den Testfilm.");
+  if (src) { $("#watchBtn").disabled = false; $("#restartBtn").disabled = false; }
+  pumpBrainIdle();
+}).catch((e) => { console.error(e); setSpeedText(""); showWarn(location.protocol === "file:" ? "<b>Bitte über einen Webserver öffnen</b> (python3 -m http.server)." : `<b>Das Gehirn konnte nicht geladen werden:</b> ${esc(e.message)}`); });
+window.KINODEBUG = () => ({ rec, L });
 </script>
 </body>
 </html>

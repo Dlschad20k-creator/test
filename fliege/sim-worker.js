@@ -193,6 +193,8 @@
       const awake = new Uint8Array(N), silent = new Uint8Array(N), dirty = new Uint8Array(N), hold = new Uint8Array(N);
       let list = new Uint32Array(N), next = new Uint32Array(N), nList = 0;
       const dlist = new Uint32Array(N); let nDirty = 0;
+      // Neuromodulation (z. B. Dopamin): langsame Zusatz-Spannung je Neuron = Empfaenglichkeit * Pegel (mV)
+      let modR = null, modLvl = 0;
       const ring = []; for (let k = 0; k < D; k++) ring.push([]);
       const rand = rng(p.seed);
       let inIdx = new Uint32Array(0), inNext = new Float64Array(0), inRate = new Float32Array(0);
@@ -206,9 +208,10 @@
       function touch(j) {
         const k = t - tLast[j];
         if (k > 0) {
-          if (k > KMAX) { u[j] = 0; g[j] = 0; ad[j] = 0; }
+          const bj = modR ? modR[j] * modLvl : 0;
+          if (k > KMAX) { u[j] = bj; g[j] = 0; ad[j] = 0; }
           else {
-            const gj = g[j]; u[j] = u[j] * EM[k] + gj * KK[k]; g[j] = gj * ES[k];
+            const gj = g[j]; u[j] = bj + (u[j] - bj) * EM[k] + gj * KK[k]; g[j] = gj * ES[k];
             if (adapt) { u[j] -= ad[j] * KA[k]; ad[j] *= EA[k]; }
           }
           tLast[j] = t;
@@ -216,14 +219,17 @@
         if (!dirty[j]) { dirty[j] = 1; dlist[nDirty++] = j; }
       }
       // kann das Neuron ohne weiteren Eingang noch die Schwelle erreichen?
-      function mayFire(uj, gj) {
-        if (uj >= theta) return true;
+      function mayFire(uj, gj, bj) {
+        // mit Zusatz-Spannung b ist die Ruhelage b statt 0: gleiche Rechnung mit u-b und Schwelle theta-b
+        const th = theta - (bj || 0), uu = uj - (bj || 0);
+        if (th <= 0.02) return true;
+        if (uu >= th) return true;
         if (gj <= 0) return false;
-        if ((uj > 0 ? uj : 0) + gj * MAXK < theta - 0.02) return false;
-        const x = (uj + gj * c) / (gj * c * r);
+        if ((uu > 0 ? uu : 0) + gj * MAXK < th - 0.02) return false;
+        const x = (uu + gj * c) / (gj * c * r);
         if (x >= 1 || x <= 0) return false;
         const a = Math.pow(x, 1 / (r - 1));
-        return uj * a + gj * c * (a - Math.pow(a, r)) > theta - 0.02;
+        return uu * a + gj * c * (a - Math.pow(a, r)) > th - 0.02;
       }
 
       function setInput(idx, ratesHz) {
@@ -323,10 +329,10 @@
               if (awake[j] === 0) {
                 const k = t - tLast[j];
                 if (k !== 0) {
-                  const gj = g[j];
-                  if (k > KMAX) { u[j] = 0; g[j] = 0; ad[j] = 0; }
+                  const gj = g[j], bj = modR ? modR[j] * modLvl : 0;
+                  if (k > KMAX) { u[j] = bj; g[j] = 0; ad[j] = 0; }
                   else {
-                    u[j] = u[j] * EM[k] + gj * KK[k]; g[j] = gj * ES[k];
+                    u[j] = bj + (u[j] - bj) * EM[k] + gj * KK[k]; g[j] = gj * ES[k];
                     if (adapt) { u[j] -= ad[j] * KA[k]; ad[j] *= EA[k]; }
                   }
                   tLast[j] = t;
@@ -357,7 +363,7 @@
           // vorgemerkte (schlafende) Neuronen nur wecken, wenn sie die Schwelle erreichen koennen
           for (let k = 0; k < nDirty; k++) {
             const j = dlist[k]; dirty[j] = 0;
-            if (mayFire(u[j], g[j])) { awake[j] = 1; hold[j] = 8; list[nList++] = j; }
+            if (mayFire(u[j], g[j], modR ? modR[j] * modLvl : 0)) { awake[j] = 1; hold[j] = 8; list[nList++] = j; }
           }
           nDirty = 0;
           // 3) wache Neuronen einen Schritt weiter
@@ -368,7 +374,8 @@
             let ui = u[i], gi = g[i];
             if (refr[i] > 0) { refr[i]--; gi *= es1; if (adapt) ad[i] *= ea1; }
             else {
-              ui = ui * em1 + gi * k1; gi *= es1;
+              const bi = modR ? modR[i] * modLvl : 0;
+              ui = bi + (ui - bi) * em1 + gi * k1; gi *= es1;
               if (adapt) { ui -= ad[i] * ka1; ad[i] *= ea1; }
               if (ui > theta && !silent[i]) { ui = uReset; refr[i] = R; out.push(i); spikes.push(i); if (adapt) ad[i] += aInc; }
             }
@@ -376,7 +383,7 @@
             // nur alle paar Schritte pruefen, ob es wieder schlafen darf (spart Rechenzeit, aendert nichts am Ergebnis)
             if (refr[i] > 0) next[nNext++] = i;
             else if (hold[i] > 0) { hold[i]--; next[nNext++] = i; }
-            else if (mayFire(ui, gi)) { hold[i] = 8; next[nNext++] = i; }
+            else if (mayFire(ui, gi, modR ? modR[i] * modLvl : 0)) { hold[i] = 8; next[nNext++] = i; }
             else { awake[i] = 0; tLast[i] = t + 1; }
           }
           const tmp = list; list = next; next = tmp; nList = nNext;
@@ -387,6 +394,12 @@
       }
       return {
         setInput, setSilent, setNoise, reset, step, setupPlasticity, memory, setMemory,
+        setModulation(R, lvl) { modR = R ? Float32Array.from(R) : null; modLvl = lvl || 0; },
+        setModLevel(lvl) {
+          // Neuronen, die durch die neue Zusatz-Spannung feuern koennten, wecken
+          modLvl = lvl || 0;
+          if (modR) for (let j = 0; j < N; j++) if (!awake[j] && modR[j] !== 0 && mayFire(u[j], g[j], modR[j] * modLvl)) { awake[j] = 1; hold[j] = 8; list[nList++] = j; tLast[j] = t; }
+        },
         setLearning(on) { if (plast) plast.enabled = !!on; },
         get awakeCount() { return nList; }, get time() { return t * dt; },
         get plast() { return plast; },
@@ -426,6 +439,8 @@
         if (m.learning !== undefined) L.setLearning(m.learning);
         if (m.forget) L.setMemory(null);
         if (m.cfg && L.plast) Object.assign(L.plast.cfg, m.cfg);
+        if (m.modR) L.setModulation(new Float32Array(m.modR), m.modLvl);
+        else if (m.modLvl !== undefined) L.setModLevel(m.modLvl);
         if (m.setMem) L.setMemory(new Float32Array(m.setMem));
         const t0 = Date.now();
         const spikes = L.step(m.ms);
