@@ -3,15 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fliegenwelt</title>
-<meta name="description" content="Eine Fruchtfliege mit Körper, gesteuert vom echten FlyWire-Gehirn: Zucker, Obst, Blumen, Bitterköder und Bedrohungen – und Experimente mit Mutanten.">
+<title>Fliegenwelt 3D</title>
+<meta name="description" content="Eine Fruchtfliege in 3D, gesteuert vom kompletten FlyWire-Gehirn: riecht echte Düfte, schmeckt, flieht – und lernt im Pilzkörper wie im Labor (Duft + Strom oder Zucker, Test im T-Labyrinth).">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <style>
-  /* Layout: links die Welt mit Werkzeugleiste und Tagebuch, rechts Gehirn live, Messwerte und Experimente. Auf dem Handy untereinander. */
+  /* Layout: links die 3D-Welt mit Werkzeugen, darunter Training, Tagebuch und Erklaerung; rechts Gehirn live, Gedaechtnis, Experimente, Einstellungen. Auf dem Handy untereinander. */
   :root {
-    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #f7f8fc; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
+    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #f6f7fb; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
     --accent: #2b4dd8; --accent-soft: #e6ebff;
     --good: #0a8f86; --good-soft: #dcf3f1; --bad: #c23a3a; --bad-soft: #f8e3e3; --warn: #a5650a; --warn-soft: #f8eedc;
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
@@ -37,127 +43,185 @@
   [hidden] { display: none !important; }
   :root { background: var(--bg); }
   body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
-  .wrap { max-width: 1360px; margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: grid; gap: 20px; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: grid; gap: 18px; }
   h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; }
-  h1 { font-size: clamp(28px, 4.6vw, 42px); }
+  h1 { font-size: clamp(28px, 4.4vw, 42px); }
   h2 { font-size: 19px; }
   h3 { font-size: 15px; }
   p { margin: 0; }
   a { color: var(--accent); }
   .muted { color: var(--muted); }
   header { display: grid; gap: 6px; }
-  header .lead { color: var(--muted); max-width: 75ch; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
-  @media (max-width: 1000px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-  .col { display: grid; gap: 20px; min-width: 0; }
+  header .lead { color: var(--muted); max-width: 82ch; }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--muted); }
+  .stats b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 18px; align-items: start; }
+  @media (max-width: 1060px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: grid; gap: 18px; min-width: 0; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .spread { justify-content: space-between; }
-
-  .tools { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tool { display: inline-flex; align-items: center; gap: 6px; font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
-  .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
-  .tool svg { width: 20px; height: 20px; flex: none; }
-  .btn { font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px; cursor: pointer; }
+  .btn, .tool { font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
   .btn:hover, .tool:hover { border-color: var(--muted); }
+  .tool[aria-pressed="true"], .btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   :root[data-theme="dark"] .btn.primary { color: #0f1422; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0f1422; } }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .tool svg { width: 18px; height: 18px; flex: none; }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  select, input[type=search], input[type=number] { font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 9px; min-width: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; padding: 2px; background: var(--surface-2); }
+  .seg button { background: none; border: 0; color: var(--muted); font: 600 14px var(--font-body); padding: 5px 11px; border-radius: 8px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
 
-  .world { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 8 / 5; background: #efe6d2; touch-action: none; }
-  @media (max-width: 640px) { .world { aspect-ratio: 1 / 1; } }
-  .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .hud { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
-  .pill { background: rgba(20, 24, 36, .78); color: #eef1fa; font-size: 13px; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .stage { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; background: #9cc3e6; touch-action: none; }
+  @media (max-width: 700px) {
+    .stage { aspect-ratio: 4 / 5; }
+    .worldcard > .stage { order: -1; }
+    .tool .lbl { display: none; }
+    .tool { padding: 7px 9px; }
+    header .lead { font-size: 15px; }
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: absolute; left: 10px; top: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+  .pill { background: rgba(16, 20, 32, .74); color: #eef1fa; font-size: 13px; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
   .pill b { font-weight: 600; }
-  .pill.slow { background: rgba(165, 101, 10, .9); }
-  .overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; background: rgba(239, 230, 210, .92); color: #3a3220; padding: 16px; }
-  .bar { height: 6px; border-radius: 3px; background: rgba(128,140,170,.25); overflow: hidden; width: min(320px, 70vw); }
+  .pill.warn { background: rgba(165, 101, 10, .92); }
+  .pill.phase { background: rgba(43, 77, 216, .9); }
+  .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(16, 20, 32, .82); color: #fff; padding: 6px 12px; border-radius: 10px; font-size: 14px; pointer-events: none; max-width: 92%; text-align: center; }
+  .overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; background: linear-gradient(#cfe3f3, #e9e3cf); color: #2a2f3a; padding: 16px; }
+  .bar { height: 6px; border-radius: 3px; background: rgba(128,140,170,.25); overflow: hidden; width: min(340px, 70vw); }
   .bar > span { display: block; height: 100%; width: 0; background: var(--accent); }
 
-  .log { font-size: 14px; display: grid; gap: 3px; max-height: 210px; overflow: auto; }
+  #brainCv { width: 100%; aspect-ratio: 16 / 9; display: block; background: #070a12; border-radius: 10px; }
+  .meters { display: grid; gap: 6px; }
+  .meter { display: grid; grid-template-columns: 1fr 60px; gap: 2px 8px; font-size: 13.5px; align-items: center; }
+  .meter .val { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 12px; }
+  .meter .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); position: relative; }
+  .meter .track span { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--accent); transition: width .12s linear, left .12s linear; }
+  .meter.sense .track span { background: var(--warn); }
+  .meter.motor .track span { background: var(--good); }
+  .meter.da .track span { background: #b0459d; }
+  .meter.val2 .track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+  .meter.off { opacity: .55; }
+  .sect { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+  .train-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .phase-line { font-size: 14px; min-height: 1.4em; }
+  .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .resbox { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+  .resbox .big { font: 700 26px var(--font-display); font-variant-numeric: tabular-nums; }
+  .choicebar { display: grid; grid-template-columns: 64px 1fr 48px; gap: 8px; align-items: center; font-size: 13.5px; }
+  .choicebar .t { height: 14px; border-radius: 7px; background: var(--line); overflow: hidden; display: flex; }
+  .choicebar .t i { display: block; height: 100%; }
+  .choicebar .t i.a { background: var(--bad); }
+  .choicebar .t i.b { background: var(--good); }
+  .mem { display: grid; gap: 7px; }
+  .memrow { display: grid; grid-template-columns: 112px 1fr; gap: 8px; align-items: center; font-size: 13px; }
+  .memrow small { color: var(--muted); display: block; font-size: 11.5px; line-height: 1.2; }
+  .membars { display: grid; gap: 3px; }
+  .membar { display: grid; grid-template-columns: 1fr 40px; gap: 6px; align-items: center; font-size: 11.5px; }
+  .membar .t { height: 7px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+  .membar .t i { display: block; height: 100%; }
+  .membar span { text-align: right; font-family: var(--font-mono); }
+  .legend-row { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .legend-row i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  .log { font-size: 14px; display: grid; gap: 3px; max-height: 230px; overflow: auto; }
   .log div { display: grid; grid-template-columns: 54px 1fr; gap: 8px; }
   .log time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
   .log .brain { color: var(--accent); font-weight: 600; }
-
-  #brainCv { width: 100%; aspect-ratio: 16 / 9; display: block; background: #070a12; border-radius: 10px; }
-  .meters { display: grid; gap: 7px; }
-  .meter { display: grid; grid-template-columns: 1fr 52px; gap: 2px 8px; font-size: 13.5px; align-items: center; }
-  .meter .lbl { display: flex; justify-content: space-between; gap: 6px; }
-  .meter .lbl small { color: var(--muted); }
-  .meter .val { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 12.5px; }
-  .meter .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
-  .meter .track span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .12s linear; }
-  .meter.sense .track span { background: var(--warn); }
-  .meter.motor .track span { background: var(--good); }
-  .meter.off { opacity: .55; }
-  .meter.off .lbl::after { content: "stumm"; color: var(--bad); font-weight: 600; font-size: 12px; }
-  .sect { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin-top: 4px; }
-
-  .exp { display: grid; gap: 8px; }
-  .expbtn { text-align: left; display: grid; gap: 2px; font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+  .exp { display: grid; gap: 7px; }
+  .expbtn { text-align: left; display: grid; gap: 2px; font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; cursor: pointer; }
   .expbtn:hover { border-color: var(--accent); }
   .expbtn b { font-weight: 600; }
   .expbtn span { font-size: 13px; color: var(--muted); }
-  .ko { display: grid; gap: 6px; }
-  .ko label { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
-  .ko input { margin-top: 4px; accent-color: var(--bad); }
-  .ko small { color: var(--muted); display: block; font-size: 12.5px; }
-  .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
-  input[type=search] { font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; width: 100%; min-width: 0; }
+  .expbtn .tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+  .ko { display: grid; gap: 5px; }
   .chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
   .chk input { margin-top: 4px; accent-color: var(--accent); }
+  .ko .chk input { accent-color: var(--bad); }
   .chk small { display: block; color: var(--muted); font-size: 12.5px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--bad-soft); color: var(--fg); border-radius: 8px; padding: 3px 4px 3px 9px; font-size: 13.5px; }
-  .chip button { all: unset; cursor: pointer; padding: 0 5px; font-size: 16px; color: var(--muted); }
-  .hits { display: grid; gap: 2px; max-height: 180px; overflow: auto; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .hits { display: grid; gap: 2px; max-height: 170px; overflow: auto; }
   .hit { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 7px; font-size: 14px; }
   .hit:hover { background: var(--surface-2); }
   .hit small { color: var(--muted); }
   .mini { font: 600 12px var(--font-body); border-radius: 7px; border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--line)); background: var(--surface); color: var(--bad); padding: 3px 8px; cursor: pointer; }
-  .note { font-size: 13px; color: var(--muted); }
-  .flow { font-size: 13.5px; display: grid; gap: 6px; }
-  .flow div { display: grid; grid-template-columns: 74px 1fr; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--bad-soft); border-radius: 8px; padding: 3px 4px 3px 9px; font-size: 13.5px; }
+  .chip button { all: unset; cursor: pointer; padding: 0 5px; font-size: 16px; color: var(--muted); }
+  .flow { font-size: 14px; display: grid; gap: 7px; }
+  .flow div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
   .flow b { font-weight: 600; }
   .tagb { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; vertical-align: 1px; }
   .tagb.brain { background: var(--accent-soft); color: var(--accent); }
   .tagb.body { background: var(--warn-soft); color: var(--warn); }
-  footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 95ch; }
+  .tagb.lab { background: #f3e1f0; color: #8d2f7e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tagb.lab { background: #3a1f36; color: #f0a6e1; } }
+  .note { font-size: 13px; color: var(--muted); }
+  footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 100ch; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Fliegenwelt</h1>
-    <p class="lead">Eine Fruchtfliege mit Körper, gesteuert vom echten Gehirn aus dem FlyWire-Konnektom. Leg Zucker, Obst, Blumen oder einen Bitterköder hin, erschreck sie mit der Hand und schau, was ihr Gehirn daraus macht. Dann schalte einzelne Neuronen ab und vergleiche.</p>
+    <h1>Fliegenwelt 3D</h1>
+    <p class="lead">Eine Fruchtfliege mit Körper, gesteuert vom kompletten FlyWire-Gehirn. Sie riecht echte Düfte (gemessene Rezeptor-Antworten), schmeckt, flieht vor deiner Hand – und lernt in ihrem Pilzkörper. Trainiere sie wie im Labor: Duft + Strom oder Duft + Zucker, dann Wahltest im T-Labyrinth.</p>
+    <div class="stats" id="stats"><span>Lade …</span></div>
   </header>
 
   <div class="grid">
     <div class="col">
-      <section class="card" aria-label="Welt">
+      <section class="card worldcard" aria-label="3D-Welt">
         <div class="row spread">
-          <div class="tools" role="group" aria-label="Werkzeug" id="tools"></div>
+          <div class="seg" role="group" aria-label="Ort">
+            <button data-scene="wiese" aria-pressed="true">Wiese</button>
+            <button data-scene="labor" aria-pressed="false">Labor (T-Labyrinth)</button>
+          </div>
           <div class="row">
+            <div class="seg" role="group" aria-label="Kamera">
+              <button data-cam="follow" aria-pressed="true">Folgen</button>
+              <button data-cam="free" aria-pressed="false">Frei</button>
+              <button data-cam="fpv" aria-pressed="false">Fliegenblick</button>
+            </div>
             <button class="btn" id="pauseBtn">Pause</button>
-            <select id="speedSel" class="btn" aria-label="Tempo"><option value="1">1× Tempo</option><option value="2">2× Tempo</option><option value="4">4× Tempo</option></select>
+            <select id="speedSel" aria-label="Tempo"><option value="1">1× Tempo</option><option value="2">2×</option><option value="4">4×</option><option value="0">so schnell es geht</option></select>
           </div>
         </div>
-        <div class="world" id="world">
-          <canvas id="worldCv"></canvas>
+        <div class="row" id="toolRow"><div class="row" role="group" aria-label="Werkzeug" id="tools"></div></div>
+        <div class="stage" id="stage">
+          <canvas id="gl"></canvas>
           <div class="hud" id="hud"></div>
+          <div class="toast" id="toast" hidden></div>
           <div class="overlay" id="overlay"><div id="ovText">Lade das Fliegenhirn …</div><div class="bar"><span id="ovBar"></span></div></div>
         </div>
-        <div class="row spread">
-          <div class="row">
-            <button class="btn" data-scene="picknick">Szene: Picknick</button>
-            <button class="btn" data-scene="wiese">Szene: Blumenwiese</button>
-            <button class="btn" data-scene="leer">Leer</button>
-          </div>
-          <div class="row"><label class="chk" style="font-size:14px"><input type="checkbox" id="follow" checked> Nah dran (Kamera folgt)</label><label class="chk" style="font-size:14px"><input type="checkbox" id="showOdor"> Duftwolken zeigen</label></div>
+        <div class="row spread note">
+          <span id="hint">Ziehen = drehen · Mausrad/Pinch = zoomen · Werkzeug wählen und auf den Boden tippen</span>
+          <label class="chk" style="font-size:14px"><input type="checkbox" id="showOdor"> Duft sichtbar</label>
         </div>
+      </section>
+
+      <section class="card" id="trainCard">
+        <div class="row spread"><h2>Training wie im Labor</h2><span class="note">Tully &amp; Quinn 1985, verkürzt</span></div>
+        <p class="note">Die Fliege riecht Duft A zusammen mit Strom (oder Zucker) und Duft B ohne. Danach entscheidet sie sich im T-Labyrinth: Sie schnuppert in beide Arme. Ihr Pilzkörper bewertet die Düfte, und sie läuft in den Arm, der sich besser anfühlt. Vorher wird abgeglichen, dass eine naive Fliege etwa 50 : 50 wählt.</p>
+        <div class="train-grid">
+          <label class="field">Duft A (mit Verstärker)<select id="csPlus"></select></label>
+          <label class="field">Duft B (ohne)<select id="csMinus"></select></label>
+          <label class="field">Verstärker<select id="usSel"><option value="strafe">Stromschlag (Strafe)</option><option value="belohnung">Zucker (Belohnung)</option></select></label>
+          <label class="field">Durchgänge<select id="repSel"><option>1</option><option>3</option><option selected>6</option><option>12</option></select></label>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="trainBtn">Training + Test starten</button>
+          <button class="btn" id="testBtn">Nur testen</button>
+          <button class="btn" id="stopBtn" disabled>Abbrechen</button>
+          <button class="btn" id="forgetBtn">Gedächtnis löschen</button>
+        </div>
+        <div class="phase-line" id="phaseLine"></div>
+        <div class="bar" style="width:100%" id="phaseBar" hidden><span></span></div>
+        <div class="results" id="results"></div>
       </section>
 
       <section class="card">
@@ -168,19 +232,30 @@
       <section class="card">
         <h2>Wer steuert was?</h2>
         <div class="flow">
-          <div><b>Schmecken</b><span><span class="tagb brain">Gehirn</span> Steht die Fliege auf Futter, feuern die 23 Zucker-Geschmacksneuronen (stärker, je hungriger sie ist), bei Bitterem die Bitter-Neuronen. Das echte Netz entscheidet, ob der Rüssel-Motorneuron MN9 feuert. Nur dann fährt der Rüssel aus und sie frisst.</span></div>
-          <div><b>Gefahr sehen</b><span><span class="tagb brain">Gehirn</span> Eine nahende Hand wächst im Auge. Die Looming-Detektoren LC4 des jeweiligen Auges feuern. Feuert die Riesenfaser DNp01, springt die Fliege ab. Die Flucht-Neuronen DNp02/04/11 drehen sie von der Seite weg, auf der sie die Gefahr sieht.</span></div>
-          <div><b>Laufen</b><span><span class="tagb body">Körper</span> Ohne Reiz läuft die Fliege umher (einfacher Laufgenerator). Tritt sie auf Futter, hält sie kurz an und kostet. Steht der Rüssel draußen, bleibt sie stehen.</span></div>
-          <div><b>Riechen</b><span><span class="tagb body">Körper</span> Die „Nase“ ist ein vereinfachter Reflex: Wird der Duft stärker, läuft sie geradeaus; wird er schwächer, dreht sie öfter. Mit dem Schalter unten gehen die Düfte stattdessen ins echte Gehirn (Experiment).</span></div>
+          <div><b>Riechen</b><span><span class="tagb brain">Gehirn</span> Jeder Duft aktiviert die Riechzellen so, wie es in der DoOR-Datenbank gemessen wurde, getrennt für linke und rechte Antenne. Über Projektionsneuronen geht es zum Pilzkörper: Dort feuern nur 2–10 % der ~5.200 Kenyon-Zellen, ein Muster pro Duft.</span></div>
+          <div><b>Bewerten</b><span><span class="tagb brain">Gehirn</span> Die Ausgangsneuronen des Pilzkörpers (MBONs) sagen „hin“ oder „weg“. Welche was sagen, folgt aus dem Konnektom: Neuronen in Kompartimenten mit Strafe-Dopamin (PPL1) fördern Annäherung, die mit Belohnungs-Dopamin (PAM) fördern Meiden.</span></div>
+          <div><b>Lernen</b><span><span class="tagb brain">Gehirn</span> Feuert Dopamin, während Kenyon-Zellen aktiv sind, werden genau deren Synapsen auf die MBONs dieses Kompartiments schwächer (Hige et al. 2015). So ändert sich die Bewertung nur für den gelernten Duft.</span></div>
+          <div><b>Strom &amp; Zucker</b><span><span class="tagb lab">wie Optogenetik</span> Das Signal von Strom und Zucker kommt beim Tier teils aus dem Körper, und diese Bahnen fehlen im Gehirn-Konnektom. Deshalb feuern hier direkt die Dopamin-Neuronen: Strom → PPL1, Zucker → PAM, wie bei optogenetischen Versuchen.</span></div>
+          <div><b>Schmecken</b><span><span class="tagb brain">Gehirn</span> Zucker unter dem Kopf → Zucker-Neuronen → das Netz entscheidet über MN9 → Rüssel raus. Bitteres hemmt das.</span></div>
+          <div><b>Gefahr</b><span><span class="tagb brain">Gehirn</span> Deine Hand wächst im Auge → LC4 → Riesenfaser → Absprung. Flucht-Neuronen drehen sie von der Gefahr weg.</span></div>
+          <div><b>Laufen</b><span><span class="tagb body">Körper</span> Ein Laufgenerator bewegt die Beine im Dreifußgang. Die Richtung ergibt sich aus angeborener Vorliebe für Obst- und Gärungsduft (Körper-Regel; im Tier läuft das über das Lateralhorn) plus dem Gelernten aus den Pilzkörper-Synapsen: Bei „hin“ läuft sie dorthin, wo der Duft stärker wird, bei „weg“ dreht sie ab.</span></div>
         </div>
       </section>
     </div>
 
     <div class="col">
       <section class="card">
-        <div class="row spread"><h2>Gehirn live</h2><span class="muted" style="font-size:13px" id="brainStat"></span></div>
+        <div class="row spread"><h2>Gehirn live</h2><span class="note" id="brainStat"></span></div>
         <canvas id="brainCv"></canvas>
         <div class="meters" id="meters"></div>
+      </section>
+
+      <section class="card">
+        <div class="row spread"><h2>Gedächtnis</h2><span class="note">Synapsen Kenyon-Zelle → MBON</span></div>
+        <div class="note" id="memNote">Noch nichts gelernt. Starte ein Training oder gib in der Wiese Strom/Zucker, während die Fliege etwas riecht.</div>
+        <div class="legend-row" id="memLegend"></div>
+        <div class="mem" id="mem"></div>
+        <div class="row"><button class="btn" id="zapBtn">⚡ Strom jetzt</button><button class="btn" id="rewardBtn">🍬 Zucker-Belohnung jetzt</button></div>
       </section>
 
       <section class="card">
@@ -190,38 +265,44 @@
 
       <section class="card">
         <h2>Fliege einstellen</h2>
-        <label class="field">Hunger: <span id="hungerVal" style="color:var(--fg)"></span>
-          <input type="range" id="hunger" min="0" max="100" value="60">
-        </label>
+        <label class="field">Hunger: <span id="hungerVal" style="color:var(--fg)"></span><input type="range" id="hunger" min="0" max="100" value="70"></label>
+        <label class="chk"><input type="checkbox" id="learnOn" checked><span>Lernen eingeschaltet<small>Aus = wie die Lernmutante <i>rutabaga</i>, der das Enzym für das Lernsignal fehlt (Livingstone et al. 1984).</small></span></label>
+        <label class="field">Vergessen<select id="forgetSel"><option value="0">gar nicht</option><option value="600">langsam (10 min)</option><option value="60">schnell (1 min)</option></select></label>
         <div class="sect">Mutanten: Neuronen stummschalten</div>
         <div class="ko" id="ko"></div>
         <input type="search" id="koSearch" placeholder="Weitere suchen: Zelltyp oder Beschreibung" autocomplete="off">
         <div class="hits" id="koHits"></div>
         <div class="chips" id="koChips"></div>
-        <div class="sect">Sinne</div>
-        <label class="chk"><input type="checkbox" id="nose" checked><span>Nasen-Reflex (Körper)<small>Folgt Duft durch einfache Regel. Aus: Futter nur durch Zufall finden.</small></span></label>
-        <label class="chk"><input type="checkbox" id="smellBrain"><span>Düfte ins echte Gehirn schicken<small>Experiment: Die Duftzellen ORN DM1/DM4/VA2 werden gereizt. Achtung, im Modell gerät das Gehirn dabei in Dauererregung und die Welt läuft in Zeitlupe.</small></span></label>
       </section>
     </div>
   </div>
 
   <footer>
-    <p>Gehirn: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024), CC BY-NC 4.0. Neuronenmodell nach Shiu et al. 2024 (Nature). Körper, Welt und die Zuordnung von Neuronen zu Bewegungen sind vereinfacht und von uns gebaut.</p>
-    <p><a href="./">← Fliegenhirn-Labor</a> · <a href="../">Testseite</a></p>
+    <p>Gehirn: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024), CC BY-NC 4.0. Düfte: DoOR 2.0 (Münch &amp; Galizia 2016), CC BY-SA 4.0. Neuronenmodell nach Shiu et al. 2024; Lernregel nach Hige et al. 2015 und Handler et al. 2019; Kompartimente nach Aso et al. 2014. Welt, Körper und Bewegung sind vereinfacht und von uns gebaut. Die biologischen Korrekturen am Modell stehen in der <a href="README.md">Anleitung</a>.</p>
+    <p><a href="welt-2d.html">Einfache 2D-Version</a> · <a href="./">Fliegenhirn-Labor</a> · <a href="../">Testseite</a></p>
   </footer>
 </div>
 
-<script>
-"use strict";
+<script src="brain-setup.js"></script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const S = window.FlyBrainSetup;
 const $ = (s) => document.querySelector(s);
-const fmt1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
 const fmt0 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
+const fmt1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+const fmt2 = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // =====================================================================
-// Gehirn laden
+// Daten laden
 // =====================================================================
 const D = {};
+let ODORS = null, CAL = null;
 async function fetchBytes(url, onProgress) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(url + ": HTTP " + r.status);
@@ -231,316 +312,417 @@ async function fetchBytes(url, onProgress) {
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
   return bytes;
 }
-async function loadBrain() {
+async function loadAll() {
   const files = ["data/meta.json.gz", "data/pos.bin.gz", "data/conn.bin.gz"], total = 11.7e6, got = [0, 0, 0];
   const prog = (k) => (g) => { got[k] = g; const s = got[0] + got[1] + got[2]; $("#ovBar").style.width = Math.min(100, s / total * 100) + "%"; $("#ovText").textContent = "Lade das Fliegenhirn … " + fmt1.format(s / 1e6) + " MB"; };
   const [mB, pB, cB] = await Promise.all(files.map((f, k) => fetchBytes(f, prog(k))));
+  [ODORS, CAL] = await Promise.all([fetch("data/duefte.json").then((r) => r.json()), fetch("data/lernen.json").then((r) => r.json())]);
+  ODORS = ODORS.duefte;
   const meta = JSON.parse(new TextDecoder().decode(mB)); const N = meta.count;
   Object.assign(D, { meta, N, dict: meta.dict, label: meta.label, ids: meta.ids });
   for (const k of Object.keys(meta.col)) D[k] = Uint32Array.from(meta.col[k]);
   const buf = cB.buffer.slice(cB.byteOffset, cB.byteOffset + cB.byteLength);
   D.offsets = new Uint32Array(buf, 0, N + 1); const E = D.offsets[N];
   D.post = new Uint32Array(buf, (N + 1) * 4, E); D.syn = new Uint16Array(buf, (N + 1) * 4 + E * 4, E);
-  D.ntCode = Uint8Array.from(D.nt, (k) => { const n = D.dict.nt[k]; return n === "ACH" ? 0 : (n === "GABA" || n === "GLUT") ? 1 : n ? 2 : 3; });
   const pos = new Uint16Array(pB.buffer.slice(pB.byteOffset, pB.byteOffset + pB.byteLength));
-  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
-  for (let i = 0; i < N; i++) for (let a = 0; a < 3; a++) { const v = pos[i * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
-  const c = mn.map((m, a) => (m + mx[a]) / 2), s = Math.max(mx[0] - mn[0], mx[1] - mn[1]) / 2;
+  const mn = [1e9, 1e9], mx = [-1e9, -1e9];
+  for (let i = 0; i < N; i++) for (let a = 0; a < 2; a++) { const v = pos[i * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
+  const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2], s = Math.max(mx[0] - mn[0], mx[1] - mn[1]) / 2;
   D.bx = new Float32Array(N); D.by = new Float32Array(N);
   for (let i = 0; i < N; i++) { D.bx[i] = (pos[i * 3] - c[0]) / s; D.by[i] = (pos[i * 3 + 1] - c[1]) / s; }
-}
-const typeName = (i) => D.dict.type[D.type[i]];
-const sideName = (i) => D.dict.side[D.side[i]];
-function byType(types, side) { const want = new Set(types.map((t) => D.dict.type.indexOf(t))); const o = []; for (let i = 0; i < D.N; i++) if (want.has(D.type[i]) && (!side || sideName(i) === side)) o.push(i); return o; }
-function byLabel(re) { const o = []; for (let i = 0; i < D.N; i++) if (re.test(D.label[i])) o.push(i); return o; }
-
-// Neuronengruppen, die Sinne und Körper mit dem Gehirn verbinden
-const G = {};
-function defineGroups() {
-  G.sugar = byLabel(/Sugar Gustatory Receptor Neuron/);
-  G.bitter = byLabel(/Bitter Gustatory Receptor Neuron|labellar bitter gustatory/i);
-  G.lc4L = byType(["LC4"], "left"); G.lc4R = byType(["LC4"], "right");
-  G.ornL = byType(["ORN_DM1", "ORN_DM4", "ORN_VA2"], "left"); G.ornR = byType(["ORN_DM1", "ORN_DM4", "ORN_VA2"], "right");
-  G.mn9 = byLabel(/\bMN9\b/);
-  G.roundup = byLabel(/\bRoundup\b/);
-  G.gf = byType(["DNp01"]);
-  G.escL = byType(["DNp02", "DNp04", "DNp11"], "left"); G.escR = byType(["DNp02", "DNp04", "DNp11"], "right");
-  G.readIdx = new Map(); // Neuron -> Liste von Gruppen
-  for (const k of ["sugar", "bitter", "lc4L", "lc4R", "ornL", "ornR", "mn9", "roundup", "gf", "escL", "escR"]) for (const i of G[k]) { if (!G.readIdx.has(i)) G.readIdx.set(i, []); G.readIdx.get(i).push(k); }
+  let syn = 0; for (let e = 0; e < E; e++) syn += D.syn[e];
+  $("#stats").innerHTML = `<span><b>${fmt0.format(N)}</b> Neuronen</span><span><b>${fmt0.format(E)}</b> Verbindungen</span><span><b>${fmt0.format(syn)}</b> Synapsen</span><span><b>${Object.keys(ODORS).length}</b> echte Düfte</span>`;
 }
 
 // =====================================================================
-// Welt
+// Gehirn aufbauen
 // =====================================================================
-const ARENA = { w: 80, h: 50 }; // Millimeter
-const KINDS = {
-  zucker: { name: "Zucker", sugar: 1, bitter: 0, odor: 0.35, r: 1.6, amount: 1 },
-  obst:   { name: "Banane", sugar: 1, bitter: 0, odor: 1.0, r: 3.2, amount: 1 },
-  blume:  { name: "Blume", sugar: 0.8, bitter: 0, odor: 0.8, r: 1.4, petal: 5.2, amount: 1 },
-  bitter: { name: "Bitterköder", sugar: 1, bitter: 1, odor: 0.7, r: 1.8, amount: 1 },
-};
-let items = [];
-const fly = { x: 40, y: 25, th: 0, v: 0, turn: 0, mode: "walk", alt: 0, flyT: 0, fvx: 0, fvy: 0, hunger: 0.6, prob: 0, legPhase: 0, pause: 0, cPrev: 0, eaten: 0, onItem: null };
-let threat = null; // {x,y,z,vx,vy,vz,life}
-let worldMs = 0;
-
-function scene(name) {
-  items = [];
-  const add = (k, x, y) => items.push({ kind: k, x, y, amount: 1, id: Math.random() });
-  if (name === "picknick") { add("obst", 16, 14); add("zucker", 62, 36); add("bitter", 60, 13); add("zucker", 22, 38); }
-  if (name === "wiese") { add("blume", 15, 13); add("blume", 38, 37); add("blume", 64, 15); add("blume", 66, 40); add("blume", 30, 15); }
-  Object.assign(fly, { x: 40, y: 25, th: Math.random() * 6.28, mode: "walk", alt: 0, v: 0, prob: 0 });
-  threat = null; odorDirty = true;
-  log(`Neue Szene: ${{ picknick: "Picknick", wiese: "Blumenwiese", leer: "leere Arena" }[name]}.`);
+let NET, G, P, REF;
+const RL = { mn9: 0, gf: 1, escL: 2, escR: 3, sugar: 4, bitter: 5, lc4L: 6, lc4R: 7, orn: 8, kc: 9, ppl1: 10, pam: 11, roundup: 12 };
+const RLN = Object.keys(RL);
+let ROLE, MBT, ROLESIZE;
+function setupBrain() {
+  NET = S.realisticNet(D); G = S.groups(D); P = S.plasticity(D, NET, G);
+  // Riechzellen nach Antenne
+  G.ornSide = {};
+  for (const g in G.orn) { const L = [], R = []; for (const i of G.orn[g]) (D.dict.side[D.side[i]] === "right" ? R : L).push(i); G.ornSide[g] = { L, R }; }
+  G.ornAll = Object.values(G.orn).flat();
+  ROLE = new Int8Array(D.N).fill(-1);
+  const put = (list, r) => { for (const i of list) ROLE[i] = r; };
+  put(G.ornAll, RL.orn); put(G.KC, RL.kc); put(G.PUNISH, RL.ppl1); put(G.REWARD, RL.pam);
+  put(G.sugar, RL.sugar); put(G.bitter, RL.bitter); put(G.lc4L, RL.lc4L); put(G.lc4R, RL.lc4R);
+  put(G.mn9, RL.mn9); put(G.gf, RL.gf); put(G.escL, RL.escL); put(G.escR, RL.escR); put(G.roundup, RL.roundup);
+  ROLESIZE = new Float32Array(RLN.length); for (let i = 0; i < D.N; i++) if (ROLE[i] >= 0) ROLESIZE[ROLE[i]]++;
+  MBT = new Int16Array(D.N).fill(-1); G.MBON.forEach((m, mi) => (MBT[m] = P.tIndex[mi]));
+  REF = new Float32Array(P.types.length);
+  P.types.forEach((t, k) => { const j = CAL.typen.indexOf(t); REF[k] = j >= 0 ? CAL.referenz[j] : 0; });
+  readout.typeRate = new Float32Array(P.types.length); readout.typeCnt = new Float32Array(P.types.length);
+  readout.vAir = CAL.ruhe;
+  KCPOS = new Int32Array(D.N).fill(-1); P.cfg.kc.forEach((k, n) => (KCPOS[k] = n));
+  kcLastT = new Float64Array(P.cfg.kc.length).fill(-1e9);
 }
-function odorAt(x, y) {
-  let c = 0;
-  for (const it of items) {
-    if (it.amount <= 0) continue;
-    const k = KINDS[it.kind], dx = x - it.x, dy = y - it.y, s = 9 + 4 * k.odor;
-    c += k.odor * Math.min(1, it.amount * 1.5) * Math.exp(-(dx * dx + dy * dy) / (2 * s * s));
-  }
-  return Math.min(1.5, c);
-}
-function itemUnder(x, y) {
-  for (const it of items) { if (it.amount <= 0) continue; const k = KINDS[it.kind]; if (Math.hypot(x - it.x, y - it.y) < k.r + 0.3) return it; }
-  return null;
-}
+let KCPOS = null;
 
 // =====================================================================
-// Sinne -> Gehirn-Eingänge
+// Simulation im Worker
 // =====================================================================
-const sense = { sugar: 0, bitter: 0, loomL: 0, loomR: 0, odorL: 0, odorR: 0 };
-function computeSenses() {
-  const hx = fly.x + Math.cos(fly.th) * 1.0, hy = fly.y + Math.sin(fly.th) * 1.0;
-  const it = fly.mode === "walk" ? itemUnder(hx, hy) : null;
-  fly.onItem = it;
-  const k = it && KINDS[it.kind];
-  sense.sugar = k ? (10 + 90 * fly.hunger) * k.sugar : 0;   // Hz pro Zucker-Neuron
-  sense.bitter = k ? 90 * k.bitter : 0;
-  // Bedrohung: Winkelgröße und deren Wachstum im linken/rechten Auge
-  sense.loomL = sense.loomR = 0;
-  if (threat && fly.mode === "walk") {
-    const dx = threat.x - fly.x, dy = threat.y - fly.y, dist = Math.hypot(dx, dy, threat.z);
-    const ang = 2 * Math.atan(threat.r / dist);
-    const dAng = threat.prevAng == null ? 0 : (ang - threat.prevAng) / 0.02;
-    threat.prevAng = ang;
-    const lat = Math.hypot(dx, dy) || 1;
-    const side = (dx * Math.sin(fly.th) - dy * Math.cos(fly.th)) / lat; // +1 links, -1 rechts
-    const drive = Math.max(0, Math.min(140, dAng * 55));
-    sense.loomL = drive * Math.max(0, Math.min(1, 0.5 + side * 1.2));
-    sense.loomR = drive * Math.max(0, Math.min(1, 0.5 - side * 1.2));
-  }
-  // Duft an linker und rechter Antenne
-  const ax = Math.cos(fly.th) * 1.2, ay = Math.sin(fly.th) * 1.2, px = Math.sin(fly.th) * 0.5, py = -Math.cos(fly.th) * 0.5;
-  sense.odorL = odorAt(fly.x + ax + px, fly.y + ay + py); sense.odorR = odorAt(fly.x + ax - px, fly.y + ay - py);
-}
-function brainInput() {
-  const idx = [], rates = [];
-  const put = (grp, hz) => { if (hz > 0.5 && !silencedGroup(grp)) for (const i of G[grp]) { idx.push(i); rates.push(hz); } };
-  put("sugar", sense.sugar); put("bitter", sense.bitter);
-  put("lc4L", sense.loomL); put("lc4R", sense.loomR);
-  if ($("#smellBrain").checked) { put("ornL", sense.odorL * 25); put("ornR", sense.odorR * 25); }
-  return { idx, rates };
-}
-
-// =====================================================================
-// Gehirn-Ausgänge (geglättete Raten je Gruppe) -> Körper
-// =====================================================================
-const rate = {}; const spikesChunk = {};
-for (const k of ["sugar", "bitter", "lc4L", "lc4R", "ornL", "ornR", "mn9", "roundup", "gf", "escL", "escR"]) { rate[k] = 0; spikesChunk[k] = 0; }
-let totalRate = 0, activeNeurons = 0;
-function readSpikes(spikes, ms) {
-  for (const k in spikesChunk) spikesChunk[k] = 0;
-  for (let n = 0; n < spikes.length; n++) { const g = G.readIdx.get(spikes[n]); if (g) for (const k of g) spikesChunk[k]++; }
-  const a = 1 - Math.exp(-ms / 120);
-  for (const k in rate) { const hz = spikesChunk[k] / Math.max(1, G[k].length) / (ms / 1000); rate[k] += (hz - rate[k]) * a; }
-  totalRate += (spikes.length / (ms / 1000) - totalRate) * a;
-}
-
-function stepBody(ms) {
-  const dt = ms / 1000;
-  fly.hunger = Math.min(1, fly.hunger + dt * 0.012);
-  // Rüssel: folgt MN9
-  const probTarget = Math.max(0, Math.min(1, (rate.mn9 - 8) / 40));
-  fly.prob += (probTarget - fly.prob) * Math.min(1, dt * 12);
-  // Fressen
-  if (fly.onItem && fly.prob > 0.5 && KINDS[fly.onItem.kind].sugar > 0) {
-    const it = fly.onItem;
-    it.amount = Math.max(0, it.amount - dt * 0.03);
-    fly.hunger = Math.max(0, fly.hunger - dt * 0.09);
-    fly.eaten += dt;
-    if (it.amount <= 0) { log(`${KINDS[it.kind].name} ist aufgefressen.`); odorDirty = true; }
-  }
-  // Flucht: Riesenfaser feuert -> Absprung
-  if (fly.mode === "walk" && spikesChunk.gf > 0) {
-    const away = threat ? Math.atan2(fly.y - threat.y, fly.x - threat.x) : fly.th + Math.PI;
-    const a = away + (Math.random() - 0.5) * 1.2;
-    fly.mode = "flight"; fly.flyT = 0; fly.fvx = Math.cos(a) * 70; fly.fvy = Math.sin(a) * 70; fly.th = a;
-    fly.escapes = (fly.escapes || 0) + 1;
-    log(`<span class="brain">Riesenfaser DNp01 feuert</span> → Absprung und Wegfliegen!`);
-  }
-  if (fly.mode === "flight") {
-    fly.flyT += dt;
-    const T = 0.9;
-    fly.alt = Math.sin(Math.min(1, fly.flyT / T) * Math.PI) * 1;
-    fly.x += fly.fvx * dt; fly.y += fly.fvy * dt;
-    if (fly.x < 3 || fly.x > ARENA.w - 3) { fly.fvx *= -1; fly.x = Math.max(3, Math.min(ARENA.w - 3, fly.x)); fly.th = Math.atan2(fly.fvy, fly.fvx); }
-    if (fly.y < 3 || fly.y > ARENA.h - 3) { fly.fvy *= -1; fly.y = Math.max(3, Math.min(ARENA.h - 3, fly.y)); fly.th = Math.atan2(fly.fvy, fly.fvx); }
-    if (fly.flyT > T) { fly.mode = "walk"; fly.alt = 0; fly.v = 0; log("Gelandet."); }
-    return;
-  }
-  // Laufen (Körper): einfacher Laufgenerator mit Pausen
-  const feeding = fly.prob > 0.3;
-  // Körper: bei neuem Futterkontakt kurz anhalten und kosten
-  const itId = fly.onItem ? fly.onItem.id : null;
-  if (itId && itId !== fly.lastItem) fly.probe = 1.6;
-  fly.lastItem = itId;
-  if (fly.probe > 0) fly.probe -= dt;
-  if (fly.pause > 0) fly.pause -= dt; else if (Math.random() < dt * 0.06) fly.pause = 0.6 + Math.random() * 1.5;
-  let vTarget = feeding || fly.pause > 0 || (fly.probe > 0 && itId) ? 0 : 7 + 5 * fly.hunger;
-  // Flucht-Neuronen: von der Seite wegdrehen, auf der die Gefahr ist, und losrennen
-  const escDiff = rate.escL - rate.escR, escSum = rate.escL + rate.escR;
-  if (escSum > 20) { vTarget = 16; fly.pause = 0; }
-  // Drehen: Zufall + Nase + Flucht + Wände
-  let turnNoise = 1.4;
-  const c = (sense.odorL + sense.odorR) / 2;
-  if ($("#nose").checked && c > 0.02 && !feeding) {
-    const dc = c - fly.cPrev;
-    turnNoise = dc > 0 ? 0.5 : 2.8;                 // Klinokinese
-    fly.turn -= (sense.odorL - sense.odorR) / (c + 0.05) * 6 * fly.hunger * dt * 10; // Tropotaxis: zur stärker riechenden Seite
-    vTarget *= 1 + 0.5 * fly.hunger;
-  }
-  fly.cPrev = c;
-  fly.turn += (Math.random() - 0.5) * turnNoise * Math.sqrt(dt) * 12 - fly.turn * dt * 3;
-  fly.turn += Math.max(-8, Math.min(8, escDiff * 0.04));
-  const m = 4, wx = fly.x < m ? 1 : fly.x > ARENA.w - m ? -1 : 0, wy = fly.y < m ? 1 : fly.y > ARENA.h - m ? -1 : 0;
-  if (wx || wy) { const want = Math.atan2(wy, wx); let d = want - fly.th; d = Math.atan2(Math.sin(d), Math.cos(d)); fly.turn += d * dt * 25; }
-  fly.turn = Math.max(-9, Math.min(9, fly.turn));
-  if (!feeding) fly.th += fly.turn * dt * (fly.v > 0.5 ? 1 : 0.3);
-  fly.v += (vTarget - fly.v) * Math.min(1, dt * 6);
-  fly.x = Math.max(1, Math.min(ARENA.w - 1, fly.x + Math.cos(fly.th) * fly.v * dt));
-  fly.y = Math.max(1, Math.min(ARENA.h - 1, fly.y + Math.sin(fly.th) * fly.v * dt));
-  fly.legPhase += fly.v * dt * 4.2;
-}
-function stepThreat(ms) {
-  if (!threat) return;
-  const dt = ms / 1000;
-  threat.life += dt;
-  if (threat.z > 2.5) {
-    const dx = threat.tx - threat.x, dy = threat.ty - threat.y, dz = 2 - threat.z, d = Math.hypot(dx, dy, dz);
-    const sp = 45; const k = Math.min(1, sp * dt / d);
-    threat.x += dx * k; threat.y += dy * k; threat.z += dz * k;
-  } else if (!threat.landed) { threat.landed = true; threat.hold = 0; }
-  if (threat.landed) { threat.hold += dt; if (threat.hold > 0.5) threat.r *= 0.9; }
-  if (threat.life > 3) { threat = null; }
-}
-
-// Ereignisse fürs Tagebuch erkennen
-const ev = { prob: false, loom: false, eatingName: null, sated: false, bitter: false };
-function detectEvents() {
-  const p = fly.prob > 0.5;
-  if (p && !ev.prob) log(`<span class="brain">MN9 feuert ${fmt0.format(rate.mn9)} Hz</span> → Rüssel raus${fly.onItem ? `, sie frisst an: ${KINDS[fly.onItem.kind].name}` : ""}.`);
-  if (!p && ev.prob) log(fly.hunger < 0.2 ? "Rüssel wieder drin – sie ist satt." : "Rüssel wieder drin.");
-  ev.prob = p;
-  const onFood = fly.onItem ? fly.onItem.id : null;
-  if (onFood && onFood !== ev.eatingName) {
-    const k = KINDS[fly.onItem.kind];
-    log(`Steht auf ${k.name}: <span class="brain">Zucker-Neuronen ${fmt0.format(sense.sugar)} Hz${k.bitter ? `, Bitter-Neuronen ${fmt0.format(sense.bitter)} Hz` : ""}</span>${silencedGroup("sugar") ? " (aber stummgeschaltet!)" : ""}.`);
-    setTimeout(() => { if (fly.onItem && fly.onItem.id === onFood && fly.prob < 0.3) log(`Kein Rüssel: MN9 nur ${fmt0.format(rate.mn9)} Hz.${KINDS[fly.onItem.kind].bitter ? " Das Bittere hemmt den Fressbefehl." : fly.hunger < 0.25 ? " Sie ist satt." : ""}`); }, 1100);
-  }
-  ev.eatingName = onFood;
-  const loom = rate.lc4L + rate.lc4R > 15;
-  if (loom && !ev.loom) log(`<span class="brain">LC4 ${rate.lc4L > rate.lc4R ? "links" : "rechts"} feuert</span> – etwas kommt von ${rate.lc4L > rate.lc4R ? "links" : "rechts"} auf sie zu.`);
-  ev.loom = loom;
-  const escOn = rate.escL + rate.escR > 20;
-  if (escOn && !ev.esc && fly.mode === "walk") log(`<span class="brain">Flucht-Neuronen ${rate.escL > rate.escR ? "links" : "rechts"} feuern</span> → sie dreht nach ${rate.escL > rate.escR ? "rechts" : "links"} weg und rennt.`);
-  ev.esc = escOn;
-}
-
-// =====================================================================
-// Simulation antreiben
-// =====================================================================
-let worker = null, busy = false, running = true, wallRef = 0, speed = 1, brainReady = false;
-const CHUNK = 20; // ms Hirnzeit pro Schritt
-let rtWin = [], rtFactor = 1, cpuLast = 0;
-let silenceDirty = true, resetPending = false;
-function resetBrain() {
-  resetPending = true;
-  for (const k in rate) rate[k] = 0;
-  fly.prob = 0; fly.probe = 0; fly.lastItem = null; ev.prob = false; ev.loom = false; ev.eatingName = null;
-}
+let worker = null, brainReady = false, busy = false, running = true, speed = 1, wallRef = 0, seq = 0;
+let worldMs = 0, rtFactor = 1; const rtWin = [];
+const CHUNK = 20;
+let silenceDirty = true, learnDirty = true, learningOn = true, forgetPending = false, cfgPending = null, lastMemReq = 0;
+let memEdges = null, memF = null;
 function startWorker() {
   worker = new Worker("sim-worker.js");
-  worker.postMessage({ cmd: "init", offsets: D.offsets.slice().buffer, post: D.post.slice().buffer, syn: D.syn.slice().buffer, ntCode: D.ntCode.slice().buffer });
+  const m = { cmd: "init", offsets: NET.offsets.buffer, post: NET.post.buffer, syn: NET.syn.buffer, ntCode: NET.ntCode.buffer, gain: NET.gain.buffer };
+  worker.postMessage(m, [m.offsets, m.post, m.syn, m.ntCode, m.gain]);
   worker.onmessage = (e) => {
-    const m = e.data;
-    if (m.type === "ready") worker.postMessage({ cmd: "live-start", params: { dt: 0.2, seed: 7 } });
-    else if (m.type === "live-ready") { brainReady = true; wallRef = performance.now(); pump(); }
-    else if (m.type === "live-spikes") onSpikes(m);
+    const r = e.data;
+    if (r.type === "ready") worker.postMessage({ cmd: "live-start", params: Object.assign({}, S.SIM, { seed: (Math.random() * 1e6) | 0 }), plastic: P.cfg, noise: { idx: G.MBON, hz: S.NOISE.hz, mv: S.NOISE.mv } });
+    else if (r.type === "live-ready") { memEdges = r.edges; brainReady = true; wallRef = performance.now(); $("#overlay").hidden = true; pump(); }
+    else if (r.type === "live-spikes") onSpikes(r);
   };
 }
 function pump() {
   if (!brainReady || busy || !running) return;
-  const due = (performance.now() - wallRef) * speed;
-  if (worldMs > due) { setTimeout(pump, Math.max(4, (worldMs - due) / speed)); return; }
-  if (due - worldMs > 250) wallRef = performance.now() - worldMs / speed; // Gehirn ist langsamer als Echtzeit
-  computeSenses();
-  const msg = { cmd: "live-step", ms: CHUNK, input: brainInput() };
+  if (speed > 0) {
+    const due = (performance.now() - wallRef) * speed;
+    if (worldMs > due) { setTimeout(pump, Math.max(4, (worldMs - due) / speed)); return; }
+    if (due - worldMs > 250) wallRef = performance.now() - worldMs / speed;
+  }
+  const msg = { cmd: "live-step", ms: CHUNK, input: buildInput(), seq: ++seq };
   if (silenceDirty) { msg.silence = silencedList(); silenceDirty = false; }
-  if (resetPending) { msg.reset = true; resetPending = false; }
+  if (learnDirty) { msg.learning = learningOn; learnDirty = false; }
+  if (forgetPending) { msg.forget = true; forgetPending = false; }
+  if (cfgPending) { msg.cfg = cfgPending; cfgPending = null; }
+  const now = performance.now();
+  if (now - lastMemReq > 700) { msg.mem = true; lastMemReq = now; }
   busy = true; worker.postMessage(msg);
 }
 function onSpikes(m) {
   busy = false;
+  if (m.mem) memF = m.mem;
   readSpikes(m.spikes, m.ms);
-  activeNeurons = m.awake; cpuLast = m.cpu;
-  for (let s = 0; s < 4; s++) { stepThreat(m.ms / 4); stepBody(m.ms / 4); }
+  const sub = 4;
+  for (let s = 0; s < sub; s++) stepWorld(m.ms / sub);
   worldMs += m.ms;
+  if (world.mode === "labor") labStep(m.ms);
   detectEvents();
+  autoZapTick();
+  runTimers();
+  if (++memTick % 10 === 0) updateLearned();
   addGlow(m.spikes);
   const now = performance.now(); rtWin.push([now, m.ms]); while (rtWin.length && now - rtWin[0][0] > 1000) rtWin.shift();
   const span = rtWin.length > 1 ? now - rtWin[0][0] : 1000; rtFactor = rtWin.reduce((a, b) => a + b[1], 0) / Math.max(200, span);
-  pump();
+  if (speed === 0) setTimeout(pump, 0); else pump();
 }
-$("#pauseBtn").addEventListener("click", () => {
-  running = !running; $("#pauseBtn").textContent = running ? "Pause" : "Weiter";
-  if (running) { wallRef = performance.now() - worldMs / speed; pump(); }
-});
-$("#speedSel").addEventListener("change", (e) => { speed = +e.target.value; wallRef = performance.now() - worldMs / speed; });
-document.addEventListener("visibilitychange", () => { if (!document.hidden && running) { wallRef = performance.now() - worldMs / speed; pump(); } });
+$("#pauseBtn").addEventListener("click", () => { running = !running; $("#pauseBtn").textContent = running ? "Pause" : "Weiter"; if (running) { wallRef = performance.now() - worldMs / Math.max(1, speed); pump(); } });
+$("#speedSel").addEventListener("change", (e) => { speed = +e.target.value; wallRef = performance.now() - worldMs / Math.max(1, speed); pump(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && running) { wallRef = performance.now() - worldMs / Math.max(1, speed); pump(); } });
 
 // =====================================================================
-// Mutanten (Stummschalten)
+// Auslese
+// =====================================================================
+const readout = { rate: new Float32Array(RLN.length), cnt: new Float32Array(RLN.length), typeRate: null, typeCnt: null, val: 0, vAir: 0, airTime: 0, gfSpike: false, kcActive: 0 };
+const sampler = { on: false, ms: 0, acc: null };
+const kcRec = { name: null, set: null };
+const kcSets = new Map(); // Duftname -> Set aktiver Kenyon-Zellen (fuer die Gedaechtnis-Anzeige)
+function readSpikes(sp, ms) {
+  const R = readout; R.cnt.fill(0); R.typeCnt.fill(0);
+  const rec = kcRec.set;
+  for (let n = 0; n < sp.length; n++) {
+    const i = sp[n], r = ROLE[i];
+    if (r >= 0) { R.cnt[r]++; if (r === RL.kc) { if (rec) rec.add(i); const kp = KCPOS[i]; if (kp >= 0) kcLastT[kp] = worldMs; } }
+    const t = MBT[i]; if (t >= 0) R.typeCnt[t]++;
+  }
+  const a = 1 - Math.exp(-ms / 120);
+  for (let r = 0; r < RLN.length; r++) { const hz = R.cnt[r] / Math.max(1, ROLESIZE[r]) / (ms / 1000); R.rate[r] += (hz - R.rate[r]) * a; }
+  R.gfSpike = R.cnt[RL.gf] > 0;
+  R.kcActive += (R.cnt[RL.kc] / (ms / 1000) - R.kcActive) * a;
+  const a2 = 1 - Math.exp(-ms / 350);
+  for (let k = 0; k < P.types.length; k++) { const hz = R.typeCnt[k] / P.tCount[k] / (ms / 1000); R.typeRate[k] += (hz - R.typeRate[k]) * a2; }
+  if (sampler.on) { for (let k = 0; k < P.types.length; k++) sampler.acc[k] += R.typeCnt[k]; sampler.ms += ms; }
+  const v = S.valence(P, R.typeRate, REF);
+  // Ruhewert nachfuehren, wenn lange kein Duft da ist
+  if (senses.odorTotal < 0.01 && world.mode === "wiese") { R.airTime += ms; if (R.airTime > 1500) R.vAir += (v - R.vAir) * 0.01; } else R.airTime = 0;
+  R.val = v - R.vAir;
+}
+// Gelerntes fuer den Duft, den sie gerade riecht: mittlere Veraenderung der Synapsen von den gerade
+// aktiven Kenyon-Zellen auf jedes MBON-Kompartiment, mit dessen Vorzeichen gewichtet.
+let kcLastT = null, memTick = 0;
+const learned = { val: 0, n: 0 };
+function updateLearned() {
+  if (!memF || !memEdges) return;
+  const now = worldMs, act = new Uint8Array(P.cfg.kc.length); let nAct = 0;
+  for (let n = 0; n < act.length; n++) if (now - kcLastT[n] < 600) { act[n] = 1; nAct++; }
+  learned.n = nAct;
+  if (nAct < 8) { learned.val += (0 - learned.val) * 0.3; return; }
+  const sum = new Float32Array(P.types.length), cnt = new Float32Array(P.types.length);
+  for (let q = 0; q < memF.length; q++) { if (!act[memEdges.eKc[q]]) continue; const t = P.tIndex[memEdges.eMb[q]]; sum[t] += memF[q] - 1; cnt[t]++; }
+  let v = 0; for (let t = 0; t < sum.length; t++) if (cnt[t] >= 20) v += P.tSign[t] * sum[t] / cnt[t];
+  learned.val += (v * 2 - learned.val) * 0.5;
+}
+function startSample() { sampler.on = true; sampler.ms = 0; sampler.acc = new Float32Array(P.types.length); }
+function endSample() {
+  sampler.on = false;
+  const r = new Float32Array(P.types.length);
+  for (let k = 0; k < r.length; k++) r[k] = sampler.acc[k] / P.tCount[k] / Math.max(0.001, sampler.ms / 1000);
+  return S.valence(P, r, REF);
+}
+
+// =====================================================================
+// Welt-Zustand
+// =====================================================================
+const world = { mode: "wiese" };
+const ARENA_R = 85;
+const KINDS = {
+  zucker: { name: "Zucker", sugar: 1, bitter: 0, odor: null, r: 5 },
+  banane: { name: "Banane", sugar: 1, bitter: 0, odor: "banane", strength: 0.6, r: 12 },
+  blume: { name: "Blume", sugar: 0.8, bitter: 0, odor: "blume", strength: 0.55, r: 10, nectar: 3 },
+  bitter: { name: "Bitterköder", sugar: 1, bitter: 1, odor: null, r: 4 },
+  essig: { name: "Essig", sugar: 0, bitter: 0, odor: "essig", strength: 0.75, r: 6, solid: true },
+};
+let MIX = {};
+const items = [];
+const fly = { x: 0, z: 0, y: 0.55, h: 0, v: 0, turn: 0, mode: "walk", hunger: 0.7, prob: 0, legPhase: 0, pause: 0, probe: 0, lastItem: null, onItem: null,
+  cPrev: 0, cHist: 0, eaten: 0, flyT: 0, vx: 0, vy: 0, vz: 0, headYaw: 0, shake: 0, wingT: 0, escapes: 0 };
+let threat = null;
+const senses = { sugar: 0, bitter: 0, loomL: 0, loomR: 0, odorTotal: 0, odorL: {}, odorR: {}, dominant: null, cL: 0, cR: 0, foodShare: 0 };
+const US = { kind: null, until: 0 };
+
+function odorConc(it, x, z) {
+  const k = KINDS[it.kind]; if (!k.odor || it.amount <= 0) return 0;
+  const dx = x - it.x, dz = z - it.z, s = 20;
+  return k.strength * Math.min(1, 0.3 + it.amount) * Math.exp(-(dx * dx + dz * dz) / (2 * s * s));
+}
+function groundAt(x, z) {
+  let y = 0;
+  for (const it of items) {
+    const d = Math.hypot(x - it.x, z - it.z);
+    if (it.kind === "zucker" && d < 5) y = Math.max(y, 0.9 * Math.max(0.3, it.amount));
+    else if (it.kind === "banane" && d < 12) y = Math.max(y, 3);
+    else if (it.kind === "blume" && d < 10) y = Math.max(y, d < 3 ? 2.4 : 1.7);
+    else if (it.kind === "bitter" && d < 4) y = Math.max(y, 1.3 * Math.sqrt(1 - (d / 4) ** 2) * Math.max(0.3, it.amount));
+  }
+  return y;
+}
+function tasteItem(x, z) {
+  for (const it of items) {
+    const k = KINDS[it.kind]; if (!(k.sugar || k.bitter) || it.amount <= 0) continue;
+    const d = Math.hypot(x - it.x, z - it.z);
+    if (d < (k.nectar || k.r)) return it;
+  }
+  return null;
+}
+
+// Sinne -> Eingaenge
+function computeSenses() {
+  const f = fly, fx = Math.cos(f.h), fz = Math.sin(f.h), lx = Math.sin(f.h), lz = -Math.cos(f.h);
+  senses.sugar = senses.bitter = 0; f.onItem = null;
+  if (world.mode === "wiese" && f.mode === "walk") {
+    const it = tasteItem(f.x + fx * 1.0, f.z + fz * 1.0); f.onItem = it;
+    if (it) { const k = KINDS[it.kind]; senses.sugar = (10 + 90 * f.hunger) * k.sugar; senses.bitter = 90 * k.bitter; }
+  }
+  // Duft an beiden Antennen
+  const aL = [f.x + fx * 1.2 + lx * 0.3, f.z + fz * 1.2 + lz * 0.3], aR = [f.x + fx * 1.2 - lx * 0.3, f.z + fz * 1.2 - lz * 0.3];
+  senses.odorL = {}; senses.odorR = {}; senses.odorTotal = 0; senses.cL = senses.cR = 0; senses.dominant = null;
+  if (world.mode === "wiese") {
+    let best = 0, sum = 0;
+    for (const it of items) {
+      const k = KINDS[it.kind]; if (!k.odor) continue;
+      const cl = odorConc(it, aL[0], aL[1]), cr = odorConc(it, aR[0], aR[1]);
+      if (cl + cr < 0.002) continue;
+      senses.odorL[k.odor] = (senses.odorL[k.odor] || 0) + cl; senses.odorR[k.odor] = (senses.odorR[k.odor] || 0) + cr;
+      senses.cL += cl; senses.cR += cr; const c = (cl + cr) / 2; sum += c;
+      if (c > best) { best = c; senses.dominant = k.name; }
+    }
+    senses.odorTotal = sum;
+    let food = 0; for (const [n, cl] of Object.entries(senses.odorL)) if (["Banane", "Essig", "Blume"].includes(n)) food += (cl + (senses.odorR[n] || 0)) / 2;
+    senses.foodShare = sum > 0 ? food / sum : 0;
+    if (best < 0.6 * sum) senses.dominant = null;
+  } else if (lab.odorNow) {
+    const c = S.TMAZE.conc; senses.odorL[lab.odorNow] = c; senses.odorR[lab.odorNow] = c; senses.cL = senses.cR = c; senses.odorTotal = c; senses.dominant = lab.odorNow;
+  }
+  // Gefahr: wachsende Hand im linken/rechten Auge
+  senses.loomL = senses.loomR = 0;
+  if (threat && f.mode === "walk" && world.mode === "wiese") {
+    const ex = f.x + fx * 0.7, ez = f.z + fz * 0.7, ey = f.y + 0.3;
+    const dx = threat.x - ex, dz = threat.z - ez, dy = threat.y - ey, dist = Math.hypot(dx, dy, dz);
+    const ang = 2 * Math.atan(threat.r / Math.max(1, dist));
+    const dAng = threat.prevAng == null ? 0 : (ang - threat.prevAng) / (CHUNK / 1000);
+    threat.prevAng = ang;
+    const lat = Math.hypot(dx, dz) || 1, side = (dx * lx + dz * lz) / lat;
+    const drive = clamp(dAng * 50, 0, 140);
+    senses.loomL = drive * clamp(0.5 + side * 1.2, 0, 1); senses.loomR = drive * clamp(0.5 - side * 1.2, 0, 1);
+  }
+}
+function patternFor(odorKey) { return MIX[odorKey] || (ODORS[odorKey] && ODORS[odorKey].pattern) || {}; }
+function buildInput() {
+  computeSenses();
+  const idx = [], rates = [];
+  const put = (list, hz, key) => { if (hz > 0.5 && !(key && koOn.has(key))) for (const i of list) { idx.push(i); rates.push(hz); } };
+  put(G.sugar, senses.sugar, "sugar"); put(G.bitter, senses.bitter, "bitter");
+  put(G.lc4L, senses.loomL, "lc4"); put(G.lc4R, senses.loomR, "lc4");
+  // Riechzellen: Summe aller Duftquellen je Glomerulus, getrennt nach Antenne
+  const gL = {}, gR = {};
+  for (const [src, c] of Object.entries(senses.odorL)) { const p = patternFor(src); for (const g in p) gL[g] = (gL[g] || 0) + p[g] * c; }
+  for (const [src, c] of Object.entries(senses.odorR)) { const p = patternFor(src); for (const g in p) gR[g] = (gR[g] || 0) + p[g] * c; }
+  for (const g in gL) { const hz = S.ORN_MAX_HZ * Math.min(1, gL[g]); if (hz > 1 && G.ornSide[g]) for (const i of G.ornSide[g].L) { idx.push(i); rates.push(hz); } }
+  for (const g in gR) { const hz = S.ORN_MAX_HZ * Math.min(1, gR[g]); if (hz > 1 && G.ornSide[g]) for (const i of G.ornSide[g].R) { idx.push(i); rates.push(hz); } }
+  // Verstaerker: Dopamin-Neuronen direkt (wie Optogenetik)
+  if (US.kind && worldMs < US.until) { const list = US.kind === "strafe" ? G.PUNISH : G.REWARD; for (const i of list) { idx.push(i); rates.push(S.US_HZ); } }
+  else if (US.kind && worldMs >= US.until) US.kind = null;
+  // Kenyon-Zellen fuer die Gedaechtnis-Anzeige einem Duft zuordnen
+  const name = senses.dominant && senses.odorTotal > 0.08 ? senses.dominant : null;
+  if (name) { if (!kcSets.has(name)) kcSets.set(name, new Set()); kcRec.set = kcSets.get(name); kcRec.name = name; } else { kcRec.set = null; kcRec.name = null; }
+  return { idx, rates };
+}
+function giveUS(kind, ms) {
+  US.kind = kind; US.until = worldMs + ms;
+  if (kind === "strafe") { fly.shake = 0.6; sparks(ms); }
+}
+
+// =====================================================================
+// Koerper
+// =====================================================================
+function stepWorld(ms) {
+  const dt = ms / 1000;
+  stepThreat(dt);
+  if (world.mode === "labor") { animateLabFly(dt); return; }
+  const f = fly;
+  f.hunger = clamp(f.hunger + dt * 0.01, 0, 1);
+  const probTarget = clamp((readout.rate[RL.mn9] - 4) / 18, 0, 1);
+  f.prob += (probTarget - f.prob) * Math.min(1, dt * 12);
+  f.shake = Math.max(0, f.shake - dt);
+  // Fressen
+  if (f.onItem && f.prob > 0.5 && KINDS[f.onItem.kind].sugar > 0) {
+    const it = f.onItem; it.amount = Math.max(0, it.amount - dt * 0.02); f.hunger = Math.max(0, f.hunger - dt * 0.08); f.eaten += dt;
+    if (it.amount <= 0) { log(`${KINDS[it.kind].name} ist leer gefressen.`); updateItemMesh(it); }
+  }
+  // Absprung durch die Riesenfaser
+  if (f.mode === "walk" && readout.gfSpike && !koOn.has("gf")) {
+    const away = threat ? Math.atan2(f.z - threat.z, f.x - threat.x) : f.h + Math.PI;
+    const a = away + (Math.random() - 0.5) * 1.0;
+    f.mode = "flight"; f.flyT = 0; f.vx = Math.cos(a) * 90; f.vz = Math.sin(a) * 90; f.vy = 70; f.h = a; f.escapes++;
+    log(`<span class="brain">Riesenfaser DNp01 feuert</span> → Absprung!`);
+  }
+  if (f.mode === "flight") {
+    f.flyT += dt;
+    f.vy -= 140 * dt; if (f.flyT > 0.35 && f.vy < -20) f.vy = -20;
+    f.x += f.vx * dt; f.z += f.vz * dt; f.y += f.vy * dt;
+    const r = Math.hypot(f.x, f.z); if (r > ARENA_R) { f.vx = -f.vx * 0.8; f.vz = -f.vz * 0.8; f.x *= ARENA_R / r; f.z *= ARENA_R / r; f.h = Math.atan2(f.vz, f.vx); }
+    const gy = groundAt(f.x, f.z) + 0.55;
+    if (f.flyT > 0.4 && f.y <= gy) { f.y = gy; f.mode = "walk"; f.v = 0; log("Gelandet."); }
+    f.wingT += dt;
+    return;
+  }
+  // Laufen
+  const feeding = f.prob > 0.3;
+  const itId = f.onItem ? f.onItem.id : null;
+  if (itId && itId !== f.lastItem) f.probe = 1.6;
+  f.lastItem = itId;
+  if (f.probe > 0) f.probe -= dt;
+  if (f.pause > 0) f.pause -= dt; else if (Math.random() < dt * 0.05) f.pause = 0.5 + Math.random() * 1.4;
+  let vTarget = feeding || f.pause > 0 || (f.probe > 0 && itId) ? 0 : 6 + 5 * f.hunger;
+  const escSum = readout.rate[RL.escL] + readout.rate[RL.escR], escDiff = readout.rate[RL.escL] - readout.rate[RL.escR];
+  if (escSum > 20) { vTarget = 16; f.pause = 0; }
+  // Duft-Navigation nach der Bewertung aus dem Pilzkoerper
+  let noise = 1.3;
+  const c = (senses.cL + senses.cR) / 2;
+  f.cHist += (c - f.cHist) * Math.min(1, dt / 0.3);
+  // angeborene Vorliebe (Koerper-Regel, im Tier ueber das Lateralhorn) + Gelerntes (Pilzkoerper-Synapsen)
+  const innate = senses.foodShare * (0.3 + f.hunger) * 1.2;
+  const drive = innate + learned.val * 2.5;
+  f.drive = drive;
+  if (c > 0.02 && !feeding && Math.abs(drive) > 0.15) {
+    const rising = c > f.cHist + 0.0005, falling = c < f.cHist - 0.0005;
+    if (drive > 0) { noise = rising ? 0.45 : falling ? 2.6 : 1.2; vTarget *= 1 + 0.25 * Math.min(drive, 2); }
+    else { noise = rising ? 2.8 : 0.6; if (rising) vTarget *= 1.3; }
+    const lr = (senses.cL - senses.cR) / (c + 0.02);
+    f.turn -= lr * Math.sign(drive) * Math.min(Math.abs(drive), 2) * dt * 22;
+  }
+  f.turn += (Math.random() - 0.5) * noise * Math.sqrt(dt) * 12 - f.turn * dt * 3;
+  f.turn += clamp(escDiff * 0.04, -8, 8);
+  // Rand der Wiese und feste Gegenstaende
+  const r = Math.hypot(f.x, f.z);
+  if (r > ARENA_R - 6) { const want = Math.atan2(-f.z, -f.x); f.turn += angDiff(want, f.h) * dt * 30; }
+  for (const it of items) if (KINDS[it.kind].solid) { const d = Math.hypot(f.x - it.x, f.z - it.z); if (d < KINDS[it.kind].r + 2.5) { const away = Math.atan2(f.z - it.z, f.x - it.x); f.turn += angDiff(away, f.h) * dt * 30; } }
+  f.turn = clamp(f.turn, -9, 9);
+  if (!feeding) f.h += f.turn * dt * (f.v > 0.5 ? 1 : 0.35);
+  f.v += (vTarget - f.v) * Math.min(1, dt * 6);
+  f.x += Math.cos(f.h) * f.v * dt; f.z += Math.sin(f.h) * f.v * dt;
+  const rr = Math.hypot(f.x, f.z); if (rr > ARENA_R) { f.x *= ARENA_R / rr; f.z *= ARENA_R / rr; }
+  f.y += (groundAt(f.x, f.z) + 0.55 - f.y) * Math.min(1, dt * 14);
+  f.legPhase += f.v * dt * 3.6;
+}
+function stepThreat(dt) {
+  if (!threat) return;
+  threat.life += dt;
+  if (!threat.landed) {
+    const dx = threat.tx - threat.x, dz = threat.tz - threat.z, dy = 16 - threat.y, d = Math.hypot(dx, dy, dz);
+    const k = Math.min(1, 170 * dt / Math.max(0.001, d));
+    threat.x += dx * k; threat.y += dy * k; threat.z += dz * k;
+    if (d < 3) { threat.landed = true; threat.hold = 0; }
+  } else { threat.hold += dt; if (threat.hold > 0.5) threat.y += 120 * dt; }
+  if (threat.life > 3.2) { threat = null; }
+}
+
+// =====================================================================
+// Ereignisse
+// =====================================================================
+const ev = { prob: false, loom: false, food: null, esc: false, odor: null, valSign: 0 };
+const timers = []; // Aufgaben nach Gehirnzeit
+function later(ms, fn) { timers.push([worldMs + ms, fn]); }
+function runTimers() { for (let k = timers.length - 1; k >= 0; k--) if (worldMs >= timers[k][0]) { const f = timers[k][1]; timers.splice(k, 1); f(); } }
+function detectEvents() {
+  if (world.mode !== "wiese") return;
+  const p = ev.prob ? fly.prob > 0.2 : fly.prob > 0.5; // Hysterese gegen Flackern
+  if (p && !ev.prob && worldMs - (ev.probLog || -1e9) > 4000) { ev.probLog = worldMs; log(`<span class="brain">MN9 feuert ${fmt0.format(readout.rate[RL.mn9])} Hz</span> → Rüssel raus${fly.onItem ? `, sie frisst: ${KINDS[fly.onItem.kind].name}` : ""}.`); }
+  if (!p && ev.prob) later(1500, () => { if (fly.prob < 0.2 && !ev.prob && worldMs - (ev.inLog || -1e9) > 4000) { ev.inLog = worldMs; log(fly.hunger < 0.2 ? "Rüssel wieder drin, sie ist satt." : "Rüssel wieder drin."); } });
+  ev.prob = p;
+  const food = fly.onItem ? fly.onItem.id : null;
+  if (food && food !== ev.food) {
+    const k = KINDS[fly.onItem.kind], it0 = food;
+    log(`Steht auf ${k.name}: <span class="brain">Zucker-Neuronen ${fmt0.format(senses.sugar)} Hz${k.bitter ? `, Bitter-Neuronen ${fmt0.format(senses.bitter)} Hz` : ""}</span>${koOn.has("sugar") ? " (stummgeschaltet!)" : ""}.`);
+    later(1100, () => { if (fly.onItem && fly.onItem.id === it0 && fly.prob < 0.3) log(`Kein Rüssel: MN9 nur ${fmt0.format(readout.rate[RL.mn9])} Hz.${KINDS[fly.onItem.kind].bitter ? " Das Bittere hemmt den Fressbefehl." : fly.hunger < 0.25 ? " Sie ist satt." : ""}`); });
+  }
+  ev.food = food;
+  const loom = readout.rate[RL.lc4L] + readout.rate[RL.lc4R] > 15;
+  if (loom && !ev.loom) log(`<span class="brain">LC4 ${readout.rate[RL.lc4L] > readout.rate[RL.lc4R] ? "links" : "rechts"} feuert</span>: Etwas kommt auf sie zu.`);
+  ev.loom = loom;
+  const escOn = readout.rate[RL.escL] + readout.rate[RL.escR] > 20;
+  if (escOn && !ev.esc && fly.mode === "walk") log(`<span class="brain">Flucht-Neuronen ${readout.rate[RL.escL] > readout.rate[RL.escR] ? "links" : "rechts"}</span> → sie dreht weg und rennt.`);
+  ev.esc = escOn;
+  const od = senses.odorTotal > 0.15 ? senses.dominant : null;
+  const dr = fly.drive || 0, sg = Math.abs(dr) > 0.25 ? Math.sign(dr) : 0;
+  if (od && learned.n >= 8 && (od !== ev.odor || (sg && sg !== ev.valSign))) {
+    const lv = learned.val;
+    log(`Riecht ${od}: <span class="brain">${learned.n} Kenyon-Zellen aktiv${Math.abs(lv) > 0.05 ? `, gelernt ${lv > 0 ? "+" : "−"}${fmt2.format(Math.abs(lv))}` : ", nichts Gelerntes"}</span> → ${sg > 0 ? "sie folgt dem Duft" : sg < 0 ? "sie meidet den Duft" : "egal"}.`);
+    ev.odor = od; ev.valSign = sg;
+  }
+  if (!od) { ev.odor = null; ev.valSign = 0; }
+}
+
+// =====================================================================
+// Mutanten
 // =====================================================================
 const KO = [
-  { key: "sugar", name: "Zucker-Geschmacksneuronen", desc: "schmeckt keinen Zucker mehr" },
-  { key: "bitter", name: "Bitter-Geschmacksneuronen", desc: "schmeckt nichts Bitteres mehr" },
-  { key: "roundup", name: "„Roundup“ (Zwischenneuron)", desc: "Schaltstelle im Fress-Schaltkreis" },
-  { key: "mn9", name: "MN9 (Rüssel-Motorneuron)", desc: "kann den Rüssel nicht ausfahren" },
-  { key: "lc4", name: "LC4 (Looming-Detektoren)", desc: "sieht nahende Gefahr nicht" },
-  { key: "gf", name: "Riesenfaser DNp01", desc: "kann nicht per Notsprung abheben" },
+  { key: "sugar", name: "Zucker-Geschmacksneuronen", desc: "schmeckt keinen Zucker", list: () => G.sugar },
+  { key: "bitter", name: "Bitter-Geschmacksneuronen", desc: "schmeckt nichts Bitteres", list: () => G.bitter },
+  { key: "roundup", name: "„Roundup“", desc: "Schaltstelle im Fress-Schaltkreis", list: () => G.roundup },
+  { key: "ppl1", name: "PPL1-Dopamin (Strafe)", desc: "kann Strafe nicht lernen", list: () => G.PUNISH },
+  { key: "pam", name: "PAM-Dopamin (Belohnung)", desc: "kann Belohnung nicht lernen", list: () => G.REWARD },
+  { key: "mbon11", name: "MBON-γ1pedc (MBON11)", desc: "wichtigster Ausgang für Strafe-Gedächtnis", list: () => G.MBON.filter((i) => D.dict.type[D.type[i]] === "MBON11") },
+  { key: "lc4", name: "LC4 (Gefahr sehen)", desc: "sieht die Hand nicht kommen", list: () => [...G.lc4L, ...G.lc4R] },
+  { key: "gf", name: "Riesenfaser DNp01", desc: "kann nicht notspringen", list: () => G.gf },
 ];
-const koOn = new Set(); const customKo = []; // {name, idx}
-function silencedGroup(grp) { if (grp === "lc4L" || grp === "lc4R") return koOn.has("lc4"); return koOn.has(grp); }
-function silencedList() {
-  const s = [];
-  for (const k of koOn) { if (k === "lc4") s.push(...G.lc4L, ...G.lc4R); else s.push(...G[k]); }
-  for (const c of customKo) s.push(...c.idx);
-  return s;
-}
+const koOn = new Set(); const customKo = [];
+function silencedList() { const s = []; for (const k of KO) if (koOn.has(k.key)) s.push(...k.list()); for (const c of customKo) s.push(...c.idx); return s; }
 function renderKo() {
-  $("#ko").innerHTML = KO.map((k) => `<label><input type="checkbox" data-ko="${k.key}" ${koOn.has(k.key) ? "checked" : ""}><span>${esc(k.name)} <small>${esc(k.desc)} · ${k.key === "lc4" ? G.lc4L.length + G.lc4R.length : G[k.key].length} Neuronen</small></span></label>`).join("");
+  $("#ko").innerHTML = KO.map((k) => `<label class="chk"><input type="checkbox" data-ko="${k.key}" ${koOn.has(k.key) ? "checked" : ""}><span>${esc(k.name)} <small>${esc(k.desc)} · ${k.list().length} Neuronen</small></span></label>`).join("");
   $("#koChips").innerHTML = customKo.map((c, n) => `<span class="chip">${esc(c.name)} · ${c.idx.length}<button data-kodel="${n}" aria-label="entfernen">×</button></span>`).join("");
-  renderMeters();
 }
-$("#ko").addEventListener("change", (e) => {
-  const k = e.target.dataset.ko; if (!k) return;
-  if (e.target.checked) koOn.add(k); else koOn.delete(k);
-  silenceDirty = true; renderMeters();
-  const ko = KO.find((x) => x.key === k);
-  log(e.target.checked ? `🧬 Mutante: ${ko.name} stummgeschaltet.` : `${ko.name} wieder aktiv.`);
-});
+function setKo(key, on, quiet) { if (on) koOn.add(key); else koOn.delete(key); silenceDirty = true; renderKo(); if (!quiet) { const k = KO.find((x) => x.key === key); log(on ? `🧬 Mutante: ${k.name} stumm.` : `${k.name} wieder aktiv.`); } }
+$("#ko").addEventListener("change", (e) => { const k = e.target.dataset.ko; if (k) setKo(k, e.target.checked); });
 let koHits = [];
 $("#koSearch").addEventListener("input", () => {
   const q = $("#koSearch").value.trim().toLowerCase();
@@ -548,361 +730,811 @@ $("#koSearch").addEventListener("input", () => {
   const types = []; D.dict.type.forEach((t, k) => { if (t && t.toLowerCase().includes(q)) types.push(k); });
   types.sort((a, b) => D.dict.type[a].length - D.dict.type[b].length);
   koHits = types.slice(0, 12).map((k) => { const idx = []; for (let i = 0; i < D.N; i++) if (D.type[i] === k) idx.push(i); return { name: D.dict.type[k], idx }; });
-  const lab = []; for (let i = 0; i < D.N; i++) if (D.label[i].toLowerCase().includes(q)) lab.push(i);
-  if (lab.length) koHits.push({ name: "„" + q + "“ in Beschreibung", idx: lab });
-  $("#koHits").innerHTML = koHits.map((h, n) => `<div class="hit"><span>${esc(h.name)} <small>${h.idx.length} Neuronen</small></span><button class="mini" data-kohit="${n}">stumm</button></div>`).join("") || `<div class="note">Nichts gefunden.</div>`;
+  const lab2 = []; for (let i = 0; i < D.N; i++) if (D.label[i].toLowerCase().includes(q)) lab2.push(i);
+  if (lab2.length) koHits.push({ name: "„" + q + "“ in Beschreibung", idx: lab2 });
+  $("#koHits").innerHTML = koHits.map((h, n) => `<div class="hit"><span>${esc(h.name)} <small>${h.idx.length}</small></span><button class="mini" data-kohit="${n}">stumm</button></div>`).join("") || `<div class="note">Nichts gefunden.</div>`;
 });
-$("#koHits").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-kohit]"); if (!b) return;
-  const h = koHits[+b.dataset.kohit]; customKo.push(h); silenceDirty = true;
-  log(`🧬 Mutante: ${esc(h.name)} (${h.idx.length} Neuronen) stummgeschaltet.`);
-  $("#koSearch").value = ""; $("#koHits").innerHTML = ""; renderKo();
-});
-$("#koChips").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-kodel]"); if (!b) return;
-  const [c] = customKo.splice(+b.dataset.kodel, 1); silenceDirty = true; log(`${esc(c.name)} wieder aktiv.`); renderKo();
-});
+$("#koHits").addEventListener("click", (e) => { const b = e.target.closest("[data-kohit]"); if (!b) return; const h = koHits[+b.dataset.kohit]; customKo.push(h); silenceDirty = true; log(`🧬 Mutante: ${esc(h.name)} stumm.`); $("#koSearch").value = ""; $("#koHits").innerHTML = ""; renderKo(); });
+$("#koChips").addEventListener("click", (e) => { const b = e.target.closest("[data-kodel]"); if (!b) return; const [c] = customKo.splice(+b.dataset.kodel, 1); silenceDirty = true; log(`${esc(c.name)} wieder aktiv.`); renderKo(); });
 $("#hunger").addEventListener("input", (e) => { fly.hunger = +e.target.value / 100; });
-$("#smellBrain").addEventListener("change", (e) => log(e.target.checked ? "Experiment: Düfte gehen jetzt ins echte Gehirn (Duftzellen DM1, DM4, VA2)." : "Düfte gehen wieder nur an den Nasen-Reflex."));
+$("#learnOn").addEventListener("change", (e) => { learningOn = e.target.checked; learnDirty = true; log(learningOn ? "Lernen wieder eingeschaltet." : "🧬 Lernmutante: Lernen ausgeschaltet (wie <i>rutabaga</i>)."); });
+$("#forgetSel").addEventListener("change", (e) => { cfgPending = { tauForget: +e.target.value }; });
+$("#forgetBtn").addEventListener("click", () => { forgetPending = true; lab.bias = null; log("Gedächtnis gelöscht: alle Synapsen wieder wie bei einer naiven Fliege."); });
+$("#zapBtn").addEventListener("click", () => { giveUS("strafe", 1000); log(`⚡ Strom! <span class="brain">PPL1-Dopamin feuert</span>${senses.dominant ? ` – sie riecht gerade ${senses.dominant}` : " – sie riecht gerade nichts Besonderes"}.`); });
+$("#rewardBtn").addEventListener("click", () => { giveUS("belohnung", 1000); log(`🍬 Zucker-Belohnung! <span class="brain">PAM-Dopamin feuert</span>${senses.dominant ? ` – sie riecht gerade ${senses.dominant}` : " – sie riecht gerade nichts Besonderes"}.`); });
 
 // =====================================================================
-// Messwerte
+// Anzeigen: Messwerte, Gehirn, Gedaechtnis
 // =====================================================================
 const METERS = [
   ["Sinne"],
-  ["sugar", "Zucker-Geschmack", "sense", 120], ["bitter", "Bitter-Geschmack", "sense", 120],
-  ["lc4L", "Gefahr-Auge links (LC4)", "sense", 120], ["lc4R", "Gefahr-Auge rechts (LC4)", "sense", 120],
-  ["ornL", "Duftzellen links", "sense", 60], ["ornR", "Duftzellen rechts", "sense", 60],
+  ["orn", "Riechzellen", "sense", 60], ["sugar", "Zucker-Geschmack", "sense", 120], ["bitter", "Bitter-Geschmack", "sense", 120],
+  ["lc4L", "Gefahr links (LC4)", "sense", 120], ["lc4R", "Gefahr rechts (LC4)", "sense", 120],
+  ["Pilzkörper (Lernen)"],
+  ["kc", "Kenyon-Zellen", "", 3], ["ppl1", "Dopamin Strafe (PPL1)", "da", 160], ["pam", "Dopamin Belohnung (PAM)", "da", 160], ["val", "MBON-Ausgang (− weg … + hin)", "val2", 3], ["learned", "Gelernt für diesen Duft", "val2", 1],
   ["Gehirn → Körper"],
-  ["roundup", "Roundup (Fress-Schaltstelle)", "", 120], ["mn9", "MN9 → Rüssel", "motor", 120],
-  ["gf", "Riesenfaser → Absprung", "motor", 120], ["escL", "Flucht-Neuronen links", "motor", 250], ["escR", "Flucht-Neuronen rechts", "motor", 250],
+  ["mn9", "MN9 → Rüssel", "motor", 120], ["gf", "Riesenfaser → Absprung", "motor", 120], ["escL", "Flucht links", "motor", 250], ["escR", "Flucht rechts", "motor", 250],
 ];
+let meterEls = [];
 function renderMeters() {
   $("#meters").innerHTML = METERS.map((m) => m.length === 1 ? `<div class="sect">${m[0]}</div>` :
-    `<div class="meter ${m[2]} ${silencedGroup(m[0]) ? "off" : ""}" data-m="${m[0]}"><div class="lbl"><span>${m[1]}</span></div><div class="val">0</div><div class="track"><span></span></div></div>`).join("");
-  meterEls = [...document.querySelectorAll("[data-m]")].map((el) => [el.dataset.m, el.querySelector(".val"), el.querySelector(".track span"), METERS.find((m) => m[0] === el.dataset.m)[3]]);
+    `<div class="meter ${m[2]}" data-m="${m[0]}"><span>${m[1]}</span><span class="val">0</span><div class="track"><span></span></div></div>`).join("");
+  meterEls = [...document.querySelectorAll("[data-m]")].map((el) => { const m = METERS.find((x) => x[0] === el.dataset.m); return [m, el.querySelector(".val"), el.querySelector(".track span")]; });
 }
-let meterEls = [];
 function updateMeters() {
-  for (const [k, val, bar, max] of meterEls) { val.textContent = fmt0.format(rate[k]) + " Hz"; bar.style.width = Math.min(100, rate[k] / max * 100) + "%"; }
-  $("#brainStat").textContent = `${fmt0.format(totalRate)} Spikes/s`;
+  for (const [m, val, bar] of meterEls) {
+    if (m[0] === "val" || m[0] === "learned") {
+      const raw = m[0] === "val" ? readout.val : learned.val;
+      const v = clamp(raw, -m[3], m[3]); val.textContent = (v >= 0 ? "+" : "−") + (m[0] === "val" ? fmt1 : fmt2).format(Math.abs(raw));
+      const w = Math.abs(v) / m[3] * 50; bar.style.left = (v >= 0 ? 50 : 50 - w) + "%"; bar.style.width = w + "%"; bar.style.background = v >= 0 ? "var(--good)" : "var(--bad)";
+      continue;
+    }
+    const r = m[0] === "kc" ? readout.kcActive / G.KC.length : readout.rate[RL[m[0]]];
+    val.textContent = m[0] === "kc" ? fmt1.format(r) + " Hz" : fmt0.format(r) + " Hz"; bar.style.width = Math.min(100, r / m[3] * 100) + "%";
+  }
 }
-
-// =====================================================================
-// Gehirn live zeichnen
-// =====================================================================
+// Gehirn live (Vorderansicht, feuernde Neuronen leuchten)
 const bcv = $("#brainCv"), bctx = bcv.getContext("2d");
 let bImg = null, bBase = null, bW = 0, bH = 0, bProj = null;
 const glow = { val: null, list: [], flag: null };
 function resizeBrain() {
   const r = bcv.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
   bW = Math.max(1, Math.round(r.width * pr)); bH = Math.max(1, Math.round(r.height * pr)); bcv.width = bW; bcv.height = bH;
-  if (!D.N) return;
-  bImg = bctx.createImageData(bW, bH); bBase = new Uint8ClampedArray(bW * bH * 4);
-  bProj = new Int32Array(D.N);
+  if (!D.N || !G) return;
+  bImg = bctx.createImageData(bW, bH); bBase = new Uint8ClampedArray(bW * bH * 4); bProj = new Int32Array(D.N);
   const sc = Math.min(bW, bH * 1.9) * 0.48;
   for (let o = 0; o < bBase.length; o += 4) { bBase[o] = 7; bBase[o + 1] = 10; bBase[o + 2] = 18; bBase[o + 3] = 255; }
   for (let i = 0; i < D.N; i++) {
     const x = (bW / 2 + D.bx[i] * sc) | 0, y = (bH / 2 + D.by[i] * sc) | 0;
-    if (x < 0 || y < 0 || x >= bW || y >= bH) { bProj[i] = -1; continue; }
-    const o = (y * bW + x) * 4; bProj[i] = o;
-    bBase[o] += 9; bBase[o + 1] += 12; bBase[o + 2] += 22;
+    if (x < 0 || y < 0 || x >= bW - 1 || y >= bH - 1) { bProj[i] = -1; continue; }
+    const o = (y * bW + x) * 4; bProj[i] = o; bBase[o] += 9; bBase[o + 1] += 12; bBase[o + 2] += 22;
   }
-  // Sinnes- und Motor-Neuronen markieren
-  for (const [grp, c] of [["sugar", [240, 170, 60]], ["bitter", [240, 170, 60]], ["lc4L", [240, 170, 60]], ["lc4R", [240, 170, 60]], ["mn9", [60, 220, 200]], ["gf", [60, 220, 200]], ["escL", [60, 220, 200]], ["escR", [60, 220, 200]]])
-    for (const i of G[grp]) { const o = bProj[i]; if (o >= 0) { bBase[o] = c[0] * .5; bBase[o + 1] = c[1] * .5; bBase[o + 2] = c[2] * .5; } }
+  for (const i of G.KC) { const o = bProj[i]; if (o >= 0) { bBase[o] += 20; bBase[o + 1] += 10; bBase[o + 2] += 26; } }
 }
-function addGlow(spikes) {
+function addGlow(sp) {
   if (!glow.val) { glow.val = new Float32Array(D.N); glow.flag = new Uint8Array(D.N); }
-  const cap = Math.min(spikes.length, 40000);
-  for (let n = 0; n < cap; n++) { const i = spikes[n]; glow.val[i] = Math.min(2, glow.val[i] + 0.7); if (!glow.flag[i]) { glow.flag[i] = 1; glow.list.push(i); } }
+  const cap = Math.min(sp.length, 40000);
+  for (let n = 0; n < cap; n++) { const i = sp[n]; glow.val[i] = Math.min(2, glow.val[i] + 0.7); if (!glow.flag[i]) { glow.flag[i] = 1; glow.list.push(i); } }
 }
 function drawBrainLive() {
   if (!bImg) return;
-  const d = bImg.data; d.set(bBase);
-  const keep = [];
+  const d = bImg.data; d.set(bBase); const keep = [];
   for (const i of glow.list) {
-    const g = glow.val[i] *= 0.86;
+    const g = (glow.val[i] *= 0.86);
     if (g < 0.04) { glow.flag[i] = 0; glow.val[i] = 0; continue; }
-    keep.push(i);
-    const o = bProj[i]; if (o < 0) continue;
-    const a = Math.min(1, g);
-    for (const off of [0, 4, bW * 4, bW * 4 + 4]) { const q = o + off; d[q] += 255 * a; d[q + 1] += 200 * a; d[q + 2] += 90 * a; }
+    keep.push(i); const o = bProj[i]; if (o < 0) continue;
+    const a = Math.min(1, g), kc = ROLE[i] === RL.kc, dan = ROLE[i] === RL.ppl1 || ROLE[i] === RL.pam;
+    const cr = dan ? 255 : kc ? 200 : 255, cg = dan ? 90 : kc ? 140 : 200, cb = dan ? 220 : kc ? 255 : 90;
+    for (const off of [0, 4, bW * 4, bW * 4 + 4]) { const q = o + off; d[q] += cr * a; d[q + 1] += cg * a; d[q + 2] += cb * a; }
   }
-  glow.list = keep;
-  bctx.putImageData(bImg, 0, 0);
+  glow.list = keep; bctx.putImageData(bImg, 0, 0);
+}
+// Gedaechtnis: mittlere Staerke der Synapsen von den Kenyon-Zellen eines Duftes auf die MBON-Kompartimente
+const MEMTYPES = [["MBON11", "γ1pedc", "Strafe"], ["MBON30", "γ1γ2γ3", "Strafe"], ["MBON20", "γ1γ2", "Strafe"], ["MBON12", "γ2α′1", "Strafe"],
+  ["MBON05", "γ4>γ1γ2", "Belohnung"], ["MBON09", "γ3β′1", "Belohnung"], ["MBON01", "γ5β′2a", "Belohnung"], ["MBON07", "α1", "Belohnung"]];
+let memView = null; // {names:[...]} welche Duefte gezeigt werden
+function renderMemory() {
+  if (!memF || !memEdges) return;
+  let names = [...kcSets.keys()].filter((n) => kcSets.get(n).size > 10);
+  if (lab.A && kcSets.has(lab.A)) names = [lab.A, lab.B].filter((n) => kcSets.has(n));
+  names = names.slice(-3);
+  if (!names.length) return;
+  const colors = ["var(--bad)", "var(--good)", "var(--accent)"];
+  const kcPos = new Map(); P.cfg.kc.forEach((k, n) => kcPos.set(k, n));
+  const res = names.map((name) => {
+    const set = kcSets.get(name), inSet = new Uint8Array(P.cfg.kc.length); for (const k of set) { const n = kcPos.get(k); if (n !== undefined) inSet[n] = 1; }
+    const sum = new Float32Array(P.types.length), cnt = new Float32Array(P.types.length);
+    for (let q = 0; q < memF.length; q++) { if (!inSet[memEdges.eKc[q]]) continue; const t = P.tIndex[memEdges.eMb[q]]; sum[t] += memF[q]; cnt[t]++; }
+    return { name, sum, cnt };
+  });
+  let any = false;
+  $("#mem").innerHTML = MEMTYPES.map(([t, comp, kind]) => {
+    const k = P.types.indexOf(t); if (k < 0) return "";
+    const bars = res.map((r, j) => {
+      if (!r.cnt[k]) return ""; const v = r.sum[k] / r.cnt[k]; if (v < 0.97) any = true;
+      return `<div class="membar"><div class="t"><i style="width:${(v * 100).toFixed(0)}%;background:${colors[j]}"></i></div><span>${fmt0.format(v * 100)} %</span></div>`;
+    }).join("");
+    if (!bars) return "";
+    return `<div class="memrow"><span>${t}<small>${comp} · ${kind}</small></span><div class="membars">${bars}</div></div>`;
+  }).join("");
+  $("#memLegend").innerHTML = res.map((r, j) => `<span><i style="background:${colors[j]}"></i>${esc(r.name)} (${kcSets.get(r.name).size} KCs)</span>`).join("");
+  $("#memNote").textContent = any ? "100 % = unverändert. Kürzere Balken = abgeschwächte Synapsen: Diese Kenyon-Zellen treiben das MBON weniger an. Das ist das Gedächtnis." : "Die Fliege kennt diese Düfte schon, hat aber noch nichts über sie gelernt (alle Synapsen bei 100 %).";
 }
 
 // =====================================================================
-// Welt zeichnen
+// 3D
 // =====================================================================
-const cv = $("#worldCv"), ctx = cv.getContext("2d");
-let W = 0, H = 0, pr = 1, S = 10, OX = 0, OY = 0;
-const cam = { s: 10, x: 0, y: 0, cx: 40, cy: 25, z: 1 };
-let odorDirty = true, odorCanvas = null, odorTimer = 0;
-function resizeWorld() {
-  const r = cv.getBoundingClientRect(); pr = Math.min(2, devicePixelRatio || 1);
-  W = Math.round(r.width * pr); H = Math.round(r.height * pr); cv.width = W; cv.height = H;
-  const pad = 2;
-  S = Math.min(W / (ARENA.w + pad * 2), H / (ARENA.h + pad * 2)); OX = (W - ARENA.w * S) / 2; OY = (H - ARENA.h * S) / 2;
-  odorDirty = true;
+const canvas = $("#gl");
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+} catch (err) {
+  $("#ovText").textContent = "Dein Browser kann kein WebGL – nimm die einfache 2D-Version."; throw err;
 }
-function toWorld(ev) { const r = cv.getBoundingClientRect(); return [((ev.clientX - r.left) * pr - cam.x) / cam.s, ((ev.clientY - r.top) * pr - cam.y) / cam.s]; }
-function buildOdor() {
-  const step = 1.5, nx = Math.ceil(ARENA.w / step), ny = Math.ceil(ARENA.h / step);
-  odorCanvas = document.createElement("canvas"); odorCanvas.width = nx; odorCanvas.height = ny;
-  const oc = odorCanvas.getContext("2d"), im = oc.createImageData(nx, ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const c = odorAt((i + .5) * step, (j + .5) * step), o = (j * nx + i) * 4;
-    im.data[o] = 150; im.data[o + 1] = 90; im.data[o + 2] = 210; im.data[o + 3] = Math.min(95, c * 110);
-  }
-  oc.putImageData(im, 0, 0); odorDirty = false;
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 5000);
+camera.position.set(-10, 7, 9);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.495; controls.minDistance = 2.5; controls.maxDistance = 700;
+const hemi = new THREE.HemisphereLight(0xdcecff, 0x6a5a3a, 1.5); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.8);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 500 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+
+function canvasTex(w, h, draw, srgb = true) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
-function drawItem(it, t) {
-  const k = KINDS[it.kind], a = Math.max(0.15, it.amount);
-  ctx.save(); ctx.translate(it.x, it.y);
-  if (it.kind === "blume") {
-    const n = 6, R = k.petal * (0.85 + 0.15 * a);
-    for (let p = 0; p < n; p++) {
-      ctx.save(); ctx.rotate(p / n * Math.PI * 2 + it.x);
-      ctx.fillStyle = p % 2 ? "#f2a5c4" : "#ee8fb5"; ctx.beginPath(); ctx.ellipse(R * 0.55, 0, R * 0.5, R * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "rgba(160,50,100,.35)"; ctx.lineWidth = 0.12; ctx.stroke(); ctx.restore();
-    }
-    ctx.fillStyle = it.amount > 0 ? "#f6c33b" : "#c9a34d"; ctx.beginPath(); ctx.arc(0, 0, k.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(190,120,20,.6)";
-    for (let p = 0; p < 9; p++) { const an = p * 2.4, rr = (p % 3 + 1) * 0.35; ctx.beginPath(); ctx.arc(Math.cos(an) * rr, Math.sin(an) * rr, 0.13, 0, Math.PI * 2); ctx.fill(); }
-    if (it.amount > 0) { ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.arc(-0.4, -0.4, 0.35 * a, 0, Math.PI * 2); ctx.fill(); }
-  } else if (it.kind === "zucker") {
-    const s = k.r * 1.5 * (0.5 + 0.5 * a);
-    ctx.fillStyle = "rgba(0,0,0,.12)"; roundRect(-s / 2 + 0.25, -s / 2 + 0.3, s, s, 0.35); ctx.fill();
-    ctx.fillStyle = "#fbfaf6"; roundRect(-s / 2, -s / 2, s, s, 0.35); ctx.fill();
-    ctx.strokeStyle = "#d9d3c4"; ctx.lineWidth = 0.12; ctx.stroke();
-    ctx.fillStyle = "#e9e4d8"; for (let p = 0; p < 6; p++) ctx.fillRect(-s / 2 + ((p * 7) % 10) / 10 * s, -s / 2 + ((p * 3) % 10) / 10 * s, 0.25, 0.25);
-  } else if (it.kind === "obst") {
-    const R = k.r * (0.6 + 0.4 * a);
-    ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(0.3, 0.35, R, R, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#f3d45a"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#fbf1c4"; ctx.beginPath(); ctx.arc(0, 0, R * 0.84, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#8b6a2b"; for (let p = 0; p < 3; p++) { const an = p / 3 * Math.PI * 2; ctx.beginPath(); ctx.ellipse(Math.cos(an) * R * 0.22, Math.sin(an) * R * 0.22, 0.28, 0.14, an, 0, Math.PI * 2); ctx.fill(); }
-  } else if (it.kind === "bitter") {
-    const R = k.r * (0.55 + 0.45 * a);
-    ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.arc(0.25, 0.3, R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#9fd0a0"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#4f8f55"; ctx.lineWidth = 0.15; ctx.stroke();
-    ctx.fillStyle = "#2f6b37"; ctx.font = `700 ${R * 1.2}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("!", 0, 0.1);
+let seedR = 7; const rnd = () => ((seedR = (seedR * 16807) % 2147483647) / 2147483647);
+
+// ---------- Wiese ----------
+const meadow = new THREE.Group(); scene.add(meadow);
+{
+  const groundTex = canvasTex(1024, 1024, (g, w, h) => {
+    g.fillStyle = "#6f8a3e"; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9000; i++) { const x = rnd() * w, y = rnd() * h, r = 1 + rnd() * 5; const t = rnd();
+      g.fillStyle = t < 0.5 ? `rgba(${70 + rnd() * 40},${110 + rnd() * 50},${40 + rnd() * 25},.55)` : t < 0.8 ? `rgba(${110 + rnd() * 30},${95 + rnd() * 20},${60},.45)` : `rgba(${150},${140},${90},.35)`;
+      g.beginPath(); g.ellipse(x, y, r, r * (0.4 + rnd()), rnd() * 3, 0, 7); g.fill(); }
+    g.strokeStyle = "rgba(60,95,35,.5)"; g.lineWidth = 1;
+    for (let i = 0; i < 4000; i++) { const x = rnd() * w, y = rnd() * h, a = rnd() * 6.28, l = 4 + rnd() * 9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  });
+  groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping; groundTex.repeat.set(14, 14);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.97 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; ground.name = "ground"; meadow.add(ground);
+  // Grashalme
+  const blade = new THREE.PlaneGeometry(1, 1, 1, 5); blade.translate(0, 0.5, 0);
+  const pa = blade.attributes.position;
+  for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); pa.setX(i, pa.getX(i) * (1 - y * 0.92) * 0.06); pa.setZ(i, y * y * 0.18); }
+  blade.computeVertexNormals();
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, roughness: 0.75 });
+  const NB = 9000, grass = new THREE.InstancedMesh(blade, bladeMat, NB);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pV = new THREE.Vector3(), sV = new THREE.Vector3(), col = new THREE.Color();
+  for (let i = 0; i < NB; i++) {
+    let r, h;
+    if (i < 1400) { r = Math.sqrt(rnd()) * (ARENA_R - 4); h = 1.5 + rnd() * 3.5; } else { r = ARENA_R + 2 + Math.pow(rnd(), 1.6) * 420; h = 10 + rnd() * 30 * Math.min(1, (r - ARENA_R) / 40 + 0.4); }
+    const a = rnd() * Math.PI * 2;
+    pV.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    q.setFromEuler(new THREE.Euler((rnd() - 0.5) * 0.4, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.4));
+    sV.set(h * (0.8 + rnd() * 0.6), h, h);
+    m4.compose(pV, q, sV); grass.setMatrixAt(i, m4);
+    col.setHSL(0.22 + rnd() * 0.08, 0.45 + rnd() * 0.25, 0.22 + rnd() * 0.18); grass.setColorAt(i, col);
   }
-  ctx.restore();
-}
-function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-function drawFly(t) {
-  const f = fly, flying = f.mode === "flight", sc = 1 + f.alt * 0.35;
-  // Schatten
-  ctx.save(); ctx.translate(f.x + f.alt * 1.4, f.y + f.alt * 1.8); ctx.rotate(f.th);
-  ctx.fillStyle = `rgba(40,30,10,${flying ? 0.18 : 0.22})`; ctx.beginPath(); ctx.ellipse(-0.3, 0, 1.6, 0.75, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.th); ctx.scale(sc, sc);
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  // Beine (Dreifuß-Gang)
-  if (!flying) {
-    ctx.strokeStyle = "#3b2a1a"; ctx.lineWidth = 0.09;
-    const legs = [[0.32, 1, 0], [0.02, 1, 1], [-0.28, 1, 0], [0.32, -1, 1], [0.02, -1, 0], [-0.28, -1, 1]];
-    for (const [lx, side, grp] of legs) {
-      const ph = f.legPhase + (grp ? Math.PI : 0), sw = Math.sin(ph) * 0.28 * Math.min(1, f.v / 4);
-      const base = lx > 0.2 ? 0.55 : lx < -0.2 ? -0.75 : -0.05;
-      const kx = lx + 0.15 * Math.sign(base) + sw * 0.5, ky = side * 0.62;
-      const fx = lx + base + sw, fy = side * 1.05;
-      ctx.beginPath(); ctx.moveTo(lx, side * 0.22); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-    }
-  }
-  // Flügel
-  const wingAng = flying ? 1.1 + Math.sin(t * 0.09) * 0.5 : 0.17;
-  for (const side of [1, -1]) {
-    ctx.save(); ctx.translate(-0.05, side * 0.12); ctx.rotate(Math.PI + side * wingAng);
-    ctx.fillStyle = flying ? "rgba(225,232,245,.35)" : "rgba(220,228,240,.55)"; ctx.strokeStyle = "rgba(120,130,150,.6)"; ctx.lineWidth = 0.04;
-    ctx.beginPath(); ctx.ellipse(0.95, 0, 1.0, 0.36, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0.1, 0); ctx.lineTo(1.8, 0.05); ctx.moveTo(0.3, 0.05); ctx.lineTo(1.6, 0.25); ctx.stroke();
-    ctx.restore();
-  }
-  // Hinterleib
-  ctx.fillStyle = "#c79a55"; ctx.beginPath(); ctx.ellipse(-0.8, 0, 0.78, 0.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#4a3320";
-  for (let b = 0; b < 4; b++) { ctx.beginPath(); ctx.ellipse(-0.55 - b * 0.28, 0, 0.07, 0.46 - b * 0.07, 0, 0, Math.PI * 2); ctx.fill(); }
-  // Brust
-  ctx.fillStyle = "#a8783e"; ctx.beginPath(); ctx.ellipse(0.05, 0, 0.48, 0.4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "rgba(60,40,20,.5)"; ctx.lineWidth = 0.04; ctx.beginPath(); ctx.moveTo(-0.25, 0); ctx.lineTo(0.4, 0); ctx.stroke();
-  // Rüssel
-  if (f.prob > 0.02) {
-    const L = 0.65 * f.prob;
-    ctx.strokeStyle = "#b36a5e"; ctx.lineWidth = 0.13; ctx.beginPath(); ctx.moveTo(0.75, 0); ctx.lineTo(0.75 + L, 0); ctx.stroke();
-    ctx.fillStyle = "#c98276"; ctx.beginPath(); ctx.ellipse(0.78 + L, 0, 0.12, 0.17, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  // Kopf und Augen
-  ctx.fillStyle = "#b98a4c"; ctx.beginPath(); ctx.ellipse(0.6, 0, 0.24, 0.38, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#c2241c";
-  for (const s of [1, -1]) { ctx.beginPath(); ctx.ellipse(0.6, s * 0.28, 0.2, 0.17, s * 0.3, 0, Math.PI * 2); ctx.fill(); }
-  ctx.fillStyle = "rgba(255,255,255,.35)"; for (const s of [1, -1]) { ctx.beginPath(); ctx.arc(0.66, s * 0.24, 0.05, 0, Math.PI * 2); ctx.fill(); }
-  // Fühler
-  ctx.strokeStyle = "#4a3320"; ctx.lineWidth = 0.06;
-  for (const s of [1, -1]) { ctx.beginPath(); ctx.moveTo(0.78, s * 0.07); ctx.lineTo(0.92, s * 0.13); ctx.stroke(); }
-  ctx.restore();
-}
-function drawThreat() {
-  if (!threat) return;
-  const rr = threat.r * (1 + 14 / Math.max(1, threat.z));
-  const a = Math.min(0.55, 0.12 + 6 / Math.max(2, threat.z));
-  const g = ctx.createRadialGradient(threat.x, threat.y, 0, threat.x, threat.y, rr);
-  g.addColorStop(0, `rgba(25,20,15,${a})`); g.addColorStop(0.7, `rgba(25,20,15,${a * 0.7})`); g.addColorStop(1, "rgba(25,20,15,0)");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(threat.x, threat.y, rr, 0, Math.PI * 2); ctx.fill();
-}
-let frame = 0;
-function render() {
-  frame++;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = "#e9dfc8"; ctx.fillRect(0, 0, W, H);
-  // Kamera: ganze Arena oder nah an der Fliege
-  const zt = $("#follow").checked ? 3.2 : 1;
-  cam.z += (zt - cam.z) * 0.08;
-  const fx = fly.x, fy = fly.y;
-  cam.cx += ((zt > 1 ? fx : ARENA.w / 2) - cam.cx) * 0.08; cam.cy += ((zt > 1 ? fy : ARENA.h / 2) - cam.cy) * 0.08;
-  cam.s = S * cam.z;
-  const half = [W / 2 / cam.s, H / 2 / cam.s];
-  const cx = cam.z > 1.02 ? Math.max(Math.min(cam.cx, ARENA.w + 2 - half[0]), half[0] - 2) : ARENA.w / 2;
-  const cy = cam.z > 1.02 ? Math.max(Math.min(cam.cy, ARENA.h + 2 - half[1]), half[1] - 2) : ARENA.h / 2;
-  cam.x = W / 2 - cx * cam.s; cam.y = H / 2 - cy * cam.s;
-  ctx.setTransform(cam.s, 0, 0, cam.s, cam.x, cam.y);
-  // Boden
-  ctx.fillStyle = "#f4ecd9"; roundRect(0, 0, ARENA.w, ARENA.h, 2); ctx.fill();
-  ctx.strokeStyle = "rgba(150,120,70,.12)"; ctx.lineWidth = 0.06;
-  ctx.beginPath(); for (let x = 5; x < ARENA.w; x += 5) { ctx.moveTo(x, 0); ctx.lineTo(x, ARENA.h); } for (let y = 5; y < ARENA.h; y += 5) { ctx.moveTo(0, y); ctx.lineTo(ARENA.w, y); } ctx.stroke();
-  ctx.strokeStyle = "rgba(120,90,40,.35)"; ctx.lineWidth = 0.25; roundRect(0, 0, ARENA.w, ARENA.h, 2); ctx.stroke();
-  if ($("#showOdor").checked) {
-    if (odorDirty || frame - odorTimer > 60) { buildOdor(); odorTimer = frame; }
-    ctx.imageSmoothingEnabled = true; ctx.drawImage(odorCanvas, 0, 0, ARENA.w, ARENA.h);
-  }
-  for (const it of items) drawItem(it, frame);
-  if (fly.mode !== "flight") drawFly(frame);
-  drawThreat();
-  if (fly.mode === "flight") drawFly(frame);
-  // Maßstab
-  ctx.fillStyle = "rgba(90,70,40,.7)"; ctx.fillRect(ARENA.w - 12, ARENA.h - 2.2, 10, 0.3);
-  ctx.font = `1.5px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.fillText("1 cm", ARENA.w - 7, ARENA.h - 2.8);
-  drawBrainLive(); updateMeters(); updateHud();
-  requestAnimationFrame(render);
-}
-function updateHud() {
-  const s = Math.floor(worldMs / 1000);
-  const slow = rtFactor < 0.85 * speed && running;
-  $("#hud").innerHTML = `<span class="pill">Zeit <b>${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</b></span>
-    <span class="pill">Hunger <b>${fmt0.format(fly.hunger * 100)} %</b></span>
-    <span class="pill">gefressen <b>${fmt1.format(fly.eaten)} s</b></span>
-    ${slow ? `<span class="pill slow">Gehirn rechnet: Zeitlupe ×${fmt1.format(rtFactor)}</span>` : ""}
-    ${!running ? `<span class="pill">Pause</span>` : ""}`;
-  if (frame % 15 === 0) $("#hungerVal").textContent = fmt0.format(fly.hunger * 100) + " %";
-  if (frame % 15 === 0 && document.activeElement !== $("#hunger")) $("#hunger").value = Math.round(fly.hunger * 100);
+  grass.castShadow = false; grass.receiveShadow = true; meadow.add(grass);
+  // Steinchen
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x9a9184, roughness: 0.9 });
+  for (let i = 0; i < 40; i++) { const s = 0.6 + rnd() * 2.5; const st = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 1), stoneMat); const a = rnd() * 6.28, r = 10 + rnd() * 120; st.position.set(Math.cos(a) * r, s * 0.25, Math.sin(a) * r); st.scale.y = 0.55; st.rotation.y = rnd() * 3; st.castShadow = st.receiveShadow = true; meadow.add(st); }
 }
 
-// =====================================================================
-// Werkzeuge
-// =====================================================================
-const ICONS = {
-  zucker: `<svg viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2" fill="#fbfaf6" stroke="#b9b09c"/></svg>`,
-  obst: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#f3d45a"/><circle cx="10" cy="10" r="5.5" fill="#fbf1c4"/></svg>`,
-  blume: `<svg viewBox="0 0 20 20">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="10" cy="5" rx="2.6" ry="4" fill="#ee8fb5" transform="rotate(${a} 10 10)"/>`).join("")}<circle cx="10" cy="10" r="2.6" fill="#f6c33b"/></svg>`,
-  bitter: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#9fd0a0" stroke="#4f8f55"/><text x="10" y="14" font-size="10" text-anchor="middle" fill="#2f6b37" font-weight="700">!</text></svg>`,
-  hand: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="#2b241b" opacity=".75"/><circle cx="10" cy="10" r="4" fill="#2b241b"/></svg>`,
-  fliege: `<svg viewBox="0 0 20 20"><ellipse cx="8" cy="10" rx="5" ry="3" fill="#c79a55"/><ellipse cx="14" cy="10" rx="2" ry="3" fill="#c2241c"/></svg>`,
-  weg: `<svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+// ---------- Gegenstaende ----------
+const itemGroup = new THREE.Group(); meadow.add(itemGroup);
+const MAT = {
+  sugar: new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.25, clearcoat: 1, transmission: 0.2, thickness: 0.5 }),
+  sugarBase: new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.6 }),
+  banana: null, peel: new THREE.MeshStandardMaterial({ color: 0xe8c94a, roughness: 0.6 }),
+  petal: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, side: THREE.DoubleSide }),
+  disc: null, stem: new THREE.MeshStandardMaterial({ color: 0x4f7a2a, roughness: 0.8 }),
+  bitter: new THREE.MeshPhysicalMaterial({ color: 0xb6e3a8, roughness: 0.1, transmission: 0.55, thickness: 1, transparent: true, opacity: 0.9 }),
+  cup: new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, transmission: 0.85, thickness: 0.6, transparent: true, opacity: 0.5 }),
+  vinegar: new THREE.MeshStandardMaterial({ color: 0x9a5a1e, roughness: 0.15, transparent: true, opacity: 0.85 }),
 };
-const TOOLS = [["zucker", "Zucker"], ["obst", "Banane"], ["blume", "Blume"], ["bitter", "Bitterköder"], ["hand", "Hand (Gefahr)"], ["fliege", "Fliege setzen"], ["weg", "Entfernen"]];
-let tool = "hand";
-function renderTools() {
-  $("#tools").innerHTML = TOOLS.map(([k, n]) => `<button class="tool" data-tool="${k}" aria-pressed="${k === tool}">${ICONS[k]}${n}</button>`).join("");
-}
-$("#tools").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (!b) return; tool = b.dataset.tool; renderTools(); });
-cv.addEventListener("pointerdown", (e) => {
-  if (!brainReady) return;
-  const [x, y] = toWorld(e);
-  if (x < 0 || y < 0 || x > ARENA.w || y > ARENA.h) return;
-  if (KINDS[tool]) { items.push({ kind: tool, x, y, amount: 1, id: Math.random() }); odorDirty = true; log(`${KINDS[tool].name} hingelegt.`); }
-  else if (tool === "hand") launchThreat(x, y);
-  else if (tool === "fliege") { Object.assign(fly, { x, y, mode: "walk", alt: 0, v: 0 }); }
-  else if (tool === "weg") {
-    let best = -1, bd = 6; items.forEach((it, n) => { const d = Math.hypot(it.x - x, it.y - y); if (d < bd) { bd = d; best = n; } });
-    if (best >= 0) { log(`${KINDS[items[best].kind].name} entfernt.`); items.splice(best, 1); odorDirty = true; }
+MAT.banana = new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex(512, 512, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2); gr.addColorStop(0, "#fbf3cf"); gr.addColorStop(0.8, "#f6e7a6"); gr.addColorStop(1, "#e9cf63");
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = "rgba(120,90,40,.75)"; for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + 0.3; g.beginPath(); g.ellipse(w / 2 + Math.cos(a) * 40, h / 2 + Math.sin(a) * 40, 14, 6, a, 0, 7); g.fill(); }
+  g.strokeStyle = "rgba(200,170,90,.35)"; g.lineWidth = 3; for (let i = 0; i < 18; i++) { const a = i / 18 * 6.283; g.beginPath(); g.moveTo(w / 2, h / 2); g.lineTo(w / 2 + Math.cos(a) * 240, h / 2 + Math.sin(a) * 240); g.stroke(); }
+}) });
+MAT.disc = new THREE.MeshStandardMaterial({ roughness: 0.8, map: canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = "#f2b71f"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { const a = i * 2.39996, r = Math.sqrt(i / 900) * 126; g.fillStyle = i % 3 ? "#d9930d" : "#ffd75a"; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r, 3, 0, 7); g.fill(); }
+}) });
+const petalShape = new THREE.Shape(); petalShape.moveTo(0, 0); petalShape.bezierCurveTo(1.6, -1.1, 6.5, -1.4, 7.6, 0); petalShape.bezierCurveTo(6.5, 1.4, 1.6, 1.1, 0, 0);
+const petalGeo = new THREE.ShapeGeometry(petalShape, 10); petalGeo.rotateX(-Math.PI / 2);
+let itemSeq = 1;
+function makeItemMesh(it) {
+  const g = new THREE.Group(); g.position.set(it.x, 0, it.z);
+  if (it.kind === "zucker") {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(5, 5.4, 0.5, 40), MAT.sugarBase); base.position.y = 0.25; base.receiveShadow = true; g.add(base);
+    const n = 160, cr = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), MAT.sugar, n); const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
+    for (let i = 0; i < n; i++) { const a = rnd() * 6.28, r = Math.sqrt(rnd()) * 4.8; const hh = 0.5 + (1 - r / 5) * 0.5 * rnd(); p.set(Math.cos(a) * r, hh, Math.sin(a) * r); q.setFromEuler(new THREE.Euler(rnd() * 3, rnd() * 3, rnd() * 3)); const k = 0.6 + rnd() * 0.9; s.set(k, k, k); m.compose(p, q, s); cr.setMatrixAt(i, m); }
+    cr.castShadow = cr.receiveShadow = true; g.add(cr); g.userData.scaleMesh = cr;
+  } else if (it.kind === "banane") {
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 3, 64), [MAT.peel, MAT.banana, MAT.banana]); sl.position.y = 1.5; sl.castShadow = sl.receiveShadow = true; g.add(sl);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(12, 0.5, 8, 64), MAT.peel); ring.rotation.x = Math.PI / 2; ring.position.y = 2.9; g.add(ring);
+  } else if (it.kind === "blume") {
+    const hue = [0, 0.92, 0.12, 0.75][(it.id * 7) % 4];
+    const pm = MAT.petal.clone(); pm.color.setHSL(hue, hue === 0 ? 0 : 0.55, hue === 0 ? 0.97 : 0.86);
+    const n = 13;
+    for (let i = 0; i < n; i++) { const p = new THREE.Mesh(petalGeo, pm); p.position.y = 1.6; p.rotation.y = i / n * Math.PI * 2 + it.x; p.rotation.z = 0.12; p.castShadow = true; p.receiveShadow = true; g.add(p); }
+    const disc = new THREE.Mesh(new THREE.SphereGeometry(3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), MAT.disc); disc.scale.y = 0.35; disc.position.y = 1.9; disc.castShadow = true; g.add(disc);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 1.6, 10), MAT.stem); stem.position.y = 0.8; g.add(stem);
+    for (let i = 0; i < 2; i++) { const lf = new THREE.Mesh(petalGeo, MAT.stem); lf.scale.set(1.5, 1, 2.2); lf.position.y = 0.3; lf.rotation.y = i * 2.6 + 0.7; lf.receiveShadow = true; g.add(lf); }
+  } else if (it.kind === "bitter") {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(4, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), MAT.bitter); dome.scale.y = 0.33; dome.castShadow = true; dome.receiveShadow = true; g.add(dome); g.userData.scaleMesh = dome;
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 12, 6), new THREE.MeshStandardMaterial({ color: 0xd7c49e })); stick.position.set(5, 6, 0); g.add(stick);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.5), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: canvasTex(256, 128, (c, w, h) => { c.fillStyle = "#fffbe6"; c.fillRect(0, 0, w, h); c.fillStyle = "#2f6b37"; c.font = "bold 46px sans-serif"; c.textAlign = "center"; c.fillText("Chinin", w / 2, 60); c.font = "28px sans-serif"; c.fillText("bitter + süß", w / 2, 104); }) }));
+    flag.position.set(8.6, 10.2, 0); g.add(flag);
+  } else if (it.kind === "essig") {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(6, 5, 7, 40, 1, true), MAT.cup); cup.position.y = 3.5; g.add(cup);
+    const liq = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5, 4.5, 40), MAT.vinegar); liq.position.y = 2.3; g.add(liq);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.5), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: canvasTex(256, 100, (c, w, h) => { c.fillStyle = "#fff"; c.fillRect(0, 0, w, h); c.fillStyle = "#7a4614"; c.font = "bold 50px sans-serif"; c.textAlign = "center"; c.fillText("Essig", w / 2, 68); }) }));
+    flag.position.set(0, 9.5, 0); g.add(flag);
   }
-});
-function launchThreat(x, y) {
-  // Die Hand startet hoch über dem angetippten Punkt und stößt auf die Fliege herab
-  threat = { x, y, z: 40, r: 7, tx: fly.x, ty: fly.y, life: 0, prevAng: null };
-  log(`✋ Eine Hand stößt ${sideOf(x, y)} herab.`);
+  itemGroup.add(g); it.mesh = g;
 }
-function sideOf(x, y) {
-  const dx = x - fly.x, dy = y - fly.y, s = dx * Math.sin(fly.th) - dy * Math.cos(fly.th), f = dx * Math.cos(fly.th) + dy * Math.sin(fly.th);
+function updateItemMesh(it) { const m = it.mesh && it.mesh.userData.scaleMesh; if (m) m.scale.setScalar(Math.max(0.15, it.amount) * (it.kind === "bitter" ? 1 : 1)); if (it.kind === "bitter" && m) m.scale.y = 0.33 * Math.max(0.15, it.amount); if (it.amount <= 0 && it.kind === "banane") it.mesh.children.forEach((c) => (c.scale.y = 0.3)); }
+function addItem(kind, x, z) { const it = { kind, x, z, amount: 1, id: itemSeq++ }; items.push(it); makeItemMesh(it); return it; }
+function removeItem(it) { itemGroup.remove(it.mesh); items.splice(items.indexOf(it), 1); }
+function clearItems() { for (const it of [...items]) removeItem(it); }
+
+// ---------- Duft sichtbar ----------
+const odorPts = (() => {
+  const n = 2600, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), colA = new Float32Array(n * 3);
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.BufferAttribute(colA, 3));
+  const mat = new THREE.PointsMaterial({ size: 2.2, vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false, sizeAttenuation: true });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.visible = false; scene.add(pts);
+  return { pts, pos, colA, n, life: new Float32Array(n), src: new Int32Array(n).fill(-1) };
+})();
+const ODOR_COL = { banane: new THREE.Color(0xffe066), blume: new THREE.Color(0xff8fd0), essig: new THREE.Color(0xc98a4a) };
+function odorColorFor(name) { if (ODOR_COL[name]) return ODOR_COL[name]; let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360; return new THREE.Color().setHSL(h / 360, 0.75, 0.6); }
+function updateOdorPts(dt) {
+  const O = odorPts; O.pts.visible = $("#showOdor").checked;
+  if (!O.pts.visible) return;
+  const srcs = world.mode === "wiese" ? items.filter((it) => KINDS[it.kind].odor && it.amount > 0) : lab.mist;
+  for (let i = 0; i < O.n; i++) {
+    O.life[i] -= dt;
+    if (O.life[i] <= 0 || O.src[i] < 0) {
+      if (!srcs.length) { O.pos[i * 3 + 1] = -100; O.life[i] = 1; continue; }
+      const s = srcs[(Math.random() * srcs.length) | 0]; O.src[i] = 1;
+      if (world.mode === "wiese") { const r = Math.abs(randn()) * 14, a = Math.random() * 6.28; O.pos[i * 3] = s.x + Math.cos(a) * r; O.pos[i * 3 + 1] = 1 + Math.random() * 8; O.pos[i * 3 + 2] = s.z + Math.sin(a) * r; const c = odorColorFor(KINDS[s.kind].odor); O.colA.set([c.r, c.g, c.b], i * 3); }
+      else { const t = Math.random(); O.pos[i * 3] = lerp(s.x0, s.x1, t); O.pos[i * 3 + 1] = 2 + Math.random() * 10; O.pos[i * 3 + 2] = lerp(s.z0, s.z1, t) + (Math.random() - 0.5) * 9; const c = odorColorFor(s.odor); O.colA.set([c.r, c.g, c.b], i * 3); }
+      O.life[i] = 1 + Math.random() * 3;
+    }
+    O.pos[i * 3 + 1] += dt * 1.5; O.pos[i * 3] += (Math.random() - 0.5) * dt * 6; O.pos[i * 3 + 2] += (Math.random() - 0.5) * dt * 6;
+  }
+  O.pts.geometry.attributes.position.needsUpdate = true; O.pts.geometry.attributes.color.needsUpdate = true;
+}
+function randn() { return Math.sqrt(-2 * Math.log(Math.random() + 1e-9)) * Math.cos(6.283 * Math.random()); }
+
+// ---------- Die Hand ----------
+const handGroup = (() => {
+  const g = new THREE.Group(); const skin = new THREE.MeshStandardMaterial({ color: 0xe0a98a, roughness: 0.62 });
+  const palm = new THREE.Mesh(new THREE.CapsuleGeometry(28, 30, 8, 24), skin); palm.scale.set(1.2, 0.42, 1); palm.rotation.z = Math.PI / 2; palm.castShadow = true; g.add(palm);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(7, 42 - Math.abs(i - 1.5) * 6, 6, 14), skin); f.rotation.x = Math.PI / 2; f.position.set(-27 + i * 18, -2, -58 + Math.abs(i - 1.5) * 4); f.castShadow = true; g.add(f); }
+  const th = new THREE.Mesh(new THREE.CapsuleGeometry(8, 34, 6, 14), skin); th.rotation.set(Math.PI / 2, 0, -0.9); th.position.set(-52, -4, -6); th.castShadow = true; g.add(th);
+  g.visible = false; scene.add(g); return g;
+})();
+function launchThreat(x, z) {
+  threat = { x, y: 160, z, r: 40, tx: fly.x, tz: fly.z, life: 0, prevAng: null, landed: false };
+  log(`✋ Eine Hand stößt ${sideOf(x, z)} herab.`);
+}
+function sideOf(x, z) {
+  const dx = x - fly.x, dz = z - fly.z, s = dx * Math.sin(fly.h) - dz * Math.cos(fly.h), f = dx * Math.cos(fly.h) + dz * Math.sin(fly.h);
   if (Math.abs(s) < Math.abs(f) * 0.35) return f > 0 ? "von vorne" : "von hinten";
   return s > 0 ? "von links" : "von rechts";
 }
-document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => scene(b.dataset.scene)));
+
+// =====================================================================
+// Die Fliege (Drosophila melanogaster, Weibchen, ~2,6 mm)
+// =====================================================================
+function makeFly() {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const shadowAll = (o) => o.traverse((c) => { if (c.isMesh) { c.castShadow = true; } });
+  const thoraxTex = canvasTex(512, 256, (g, w, h) => {
+    g.fillStyle = "#a9773b"; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${90 + rnd() * 60},${55 + rnd() * 40},${20},${0.25})`; g.fillRect(rnd() * w, rnd() * h, 2, 2); }
+    g.fillStyle = "rgba(85,52,22,.55)"; for (const u of [0.18, 0.32, 0.68, 0.82]) g.fillRect(u * w - 6, 0, 12, h);
+  });
+  const abdTex = canvasTex(256, 512, (g, w, h) => {
+    g.fillStyle = "#d1a865"; g.fillRect(0, 0, w, h);
+    const bands = [0.18, 0.34, 0.5, 0.65, 0.78]; for (let k = 0; k < bands.length; k++) { g.fillStyle = `rgba(40,24,12,${0.75 + k * 0.05})`; g.fillRect(0, bands[k] * h, w, (0.07 + k * 0.012) * h); }
+    g.fillStyle = "rgba(40,24,12,.92)"; g.fillRect(0, 0.88 * h, w, 0.12 * h);
+    for (let i = 0; i < 1500; i++) { g.fillStyle = "rgba(255,240,200,.12)"; g.fillRect(rnd() * w, rnd() * h, 1.5, 1.5); }
+  });
+  const eyeTex = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = "#7d0810"; g.fillRect(0, 0, w, h);
+    const r = 5.2; for (let y = 0; y < h + r; y += r * 1.5) for (let x = 0; x < w + r; x += r * 1.732) { const ox = (Math.round(y / (r * 1.5)) % 2) * r * 0.866; g.fillStyle = `rgb(${170 + rnd() * 40},${20 + rnd() * 15},${28})`; g.beginPath(); g.arc(x + ox, y, r * 0.78, 0, 7); g.fill(); }
+  });
+  const chitin = (map, color, rough = 0.45) => new THREE.MeshPhysicalMaterial({ map, color: color || 0xffffff, roughness: rough, clearcoat: 0.6, clearcoatRoughness: 0.35 });
+  // Brust: Kugel mit Polen entlang der Koerperachse
+  const thGeo = new THREE.SphereGeometry(1, 40, 28); thGeo.rotateZ(Math.PI / 2);
+  const thorax = new THREE.Mesh(thGeo, chitin(thoraxTex)); thorax.scale.set(0.56, 0.44, 0.42); body.add(thorax);
+  const scut = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), chitin(null, 0xa06c34)); scut.scale.set(0.2, 0.12, 0.2); scut.position.set(-0.45, 0.3, 0); body.add(scut);
+  // Hinterleib (Drehkoerper, Ringe quer zur Achse)
+  const prof = []; for (let i = 0; i <= 24; i++) { const t = i / 24; prof.push(new THREE.Vector2(Math.max(0.001, 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.02)), 0.75) * (1 - 0.25 * t)), t * 1.55)); }
+  const abGeo = new THREE.LatheGeometry(prof, 40); abGeo.rotateZ(Math.PI / 2);
+  const abdomen = new THREE.Mesh(abGeo, chitin(abdTex, 0xffffff, 0.5)); abdomen.position.set(-0.4, -0.04, 0); abdomen.scale.set(1, 0.9, 1.02); body.add(abdomen);
+  // Kopf, Augen, Punktaugen, Fuehler
+  const head = new THREE.Group(); head.position.set(0.58, 0.06, 0); body.add(head);
+  const headM = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), chitin(null, 0xb3823f)); headM.scale.set(0.2, 0.3, 0.33); head.add(headM);
+  const eyeMat = new THREE.MeshPhysicalMaterial({ map: eyeTex, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.15 });
+  for (const s of [1, -1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), eyeMat); e.scale.set(0.2, 0.27, 0.15); e.position.set(0.05, 0.02, s * 0.25); head.add(e); }
+  for (const p of [[0.02, 0.29, 0], [-0.04, 0.27, 0.06], [-0.04, 0.27, -0.06]]) { const o = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3a0606, roughness: 0.2 })); o.position.set(...p); head.add(o); }
+  const antMat = chitin(null, 0x8c5a2c);
+  for (const s of [1, -1]) {
+    const a = new THREE.Group(); a.position.set(0.18, 0.08, s * 0.07); a.rotation.set(0, -s * 0.5, -0.35); head.add(a);
+    const seg1 = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), antMat); seg1.position.x = 0.04; a.add(seg1);
+    const seg3 = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), antMat); seg3.scale.set(0.06, 0.1, 0.05); seg3.position.set(0.1, -0.05, 0); a.add(seg3);
+    const ar = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.008, 0.32, 5), new THREE.MeshStandardMaterial({ color: 0x2a1a0e })); ar.rotation.z = -1.1; ar.position.set(0.22, 0.03, 0); a.add(ar);
+  }
+  // Ruessel
+  const prob = new THREE.Group(); prob.position.set(0.1, -0.22, 0); prob.rotation.z = -1.0; head.add(prob);
+  const probM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1, 10), chitin(null, 0x9a5c48)); probM.geometry.translate(0, -0.5, 0); prob.add(probM);
+  const lab1 = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), chitin(null, 0xb06d5b)); lab1.scale.set(0.09, 0.05, 0.11); prob.add(lab1);
+  // Fluegel
+  const wingTex = canvasTex(512, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const path = new Path2D(); path.moveTo(4, h / 2); path.bezierCurveTo(w * 0.25, h * 0.06, w * 0.8, h * 0.02, w - 6, h * 0.42); path.bezierCurveTo(w - 2, h * 0.7, w * 0.55, h * 0.98, w * 0.2, h * 0.72); path.closePath();
+    g.fillStyle = "rgba(215,225,240,.42)"; g.fill(path); g.save(); g.clip(path);
+    g.strokeStyle = "rgba(70,60,50,.85)"; g.lineWidth = 3;
+    const veins = [[0.5, 0.3], [0.48, 0.42], [0.5, 0.56], [0.52, 0.7]];
+    for (const [y0, y1] of veins) { g.beginPath(); g.moveTo(8, h / 2); g.quadraticCurveTo(w * 0.5, h * y0, w - 10, h * y1); g.stroke(); }
+    g.lineWidth = 2.5; g.beginPath(); g.moveTo(w * 0.42, h * 0.38); g.lineTo(w * 0.45, h * 0.55); g.moveTo(w * 0.64, h * 0.5); g.lineTo(w * 0.66, h * 0.66); g.stroke();
+    g.restore(); g.strokeStyle = "rgba(70,60,50,.7)"; g.lineWidth = 3; g.stroke(path);
+  });
+  const wingMat = new THREE.MeshPhysicalMaterial({ map: wingTex, transparent: true, side: THREE.DoubleSide, roughness: 0.15, iridescence: 0.9, iridescenceIOR: 1.3, iridescenceThicknessRange: [200, 600], depthWrite: false });
+  const wings = [];
+  for (const s of [1, -1]) {
+    const hinge = new THREE.Group(); hinge.position.set(0.02, 0.4, s * 0.15); body.add(hinge);
+    const wg = new THREE.PlaneGeometry(2.25, 1.05); wg.translate(-1.12, 0, 0); wg.rotateX(-Math.PI / 2);
+    if (s < 0) { const uv = wg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i)); }
+    const w = new THREE.Mesh(wg, wingMat); w.renderOrder = 2; hinge.add(w);
+    wings.push({ hinge, mesh: w, s });
+  }
+  // Schwingkoelbchen
+  for (const s of [1, -1]) { const hl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), chitin(null, 0xe0c890)); hl.position.set(-0.3, 0.2, s * 0.3); body.add(hl); }
+  // Borsten
+  const bristleGeo = new THREE.CylinderGeometry(0.003, 0.008, 0.24, 4); bristleGeo.translate(0, 0.12, 0);
+  const bristles = new THREE.InstancedMesh(bristleGeo, new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 0.6 }), 26);
+  { const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1); let k = 0;
+    for (let i = 0; i < 26; i++) { const u = (i % 13) / 6.5 - 1 + (rnd() - 0.5) * 0.1, a = (i < 13 ? -1 : 1) * (0.25 + rnd() * 0.55); const x = u * 0.42, y = 0.43 * Math.cos(a) * Math.sqrt(Math.max(0.05, 1 - u * u)), z = 0.4 * Math.sin(a) * Math.sqrt(Math.max(0.05, 1 - u * u)); p.set(x, y, z); q.setFromEuler(new THREE.Euler(a * 0.8, 0, 1.25)); m.compose(p, q, sc); bristles.setMatrixAt(k++, m); } }
+  body.add(bristles);
+  // Beine
+  const legMat = chitin(null, 0x6e4b27, 0.5);
+  const seg = (len, r0, r1) => { const g = new THREE.CylinderGeometry(r1, r0, len, 8); g.rotateZ(-Math.PI / 2); g.translate(len / 2, 0, 0); return new THREE.Mesh(g, legMat); };
+  const legs = [];
+  const LEGDEF = [[0.32, 0.65], [0.06, 0.05], [-0.2, -0.75]];
+  for (const s of [1, -1]) for (let k = 0; k < 3; k++) {
+    const hip = new THREE.Group(); hip.position.set(LEGDEF[k][0], -0.26, s * 0.17); body.add(hip);
+    const coxa = new THREE.Group(); hip.add(coxa); coxa.add(seg(0.2, 0.07, 0.06));
+    const femur = new THREE.Group(); femur.position.x = 0.2; coxa.add(femur); femur.add(seg(0.62, 0.062, 0.045));
+    const tibia = new THREE.Group(); tibia.position.x = 0.62; femur.add(tibia); tibia.add(seg(0.58, 0.042, 0.03));
+    const tarsus = new THREE.Group(); tarsus.position.x = 0.58; tibia.add(tarsus); tarsus.add(seg(0.48, 0.03, 0.016));
+    legs.push({ hip, coxa, femur, tibia, tarsus, s, k, a0: LEGDEF[k][1], grp: (k === 1) === (s > 0) ? 0 : 1 });
+  }
+  shadowAll(body);
+  return { root, body, head, prob, wings, legs, abdomen };
+}
+const FLY = makeFly(); scene.add(FLY.root);
+const flyMarker = new THREE.Mesh(new THREE.RingGeometry(3, 3.7, 40), new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.85, depthWrite: false })); flyMarker.rotation.x = -Math.PI / 2; scene.add(flyMarker);
+function poseFly(dtFrame, t) {
+  const f = fly, F = FLY;
+  const jitter = f.shake > 0 ? 0.12 * f.shake : 0;
+  F.root.position.set(f.x + (Math.random() - 0.5) * jitter, f.y + (Math.random() - 0.5) * jitter, f.z + (Math.random() - 0.5) * jitter);
+  F.root.rotation.y = -f.h;
+  const flying = f.mode === "flight";
+  F.body.rotation.z = flying ? 0.25 : 0; F.body.rotation.x = flying ? clamp(f.turn * 0.04, -0.4, 0.4) : 0;
+  F.head.rotation.y = -f.headYaw;
+  // Ruessel
+  const pe = f.prob; F.prob.scale.set(1, 0.08 + pe * 0.5, 1); F.prob.rotation.z = -1.0 - pe * 0.4;
+  // Fluegel
+  for (const w of F.wings) {
+    if (flying) { const ph = Math.sin(t * 0.09); w.hinge.rotation.set(w.s * 0.35 * ph, w.s * (Math.PI / 2 + ph * 0.7), 0.1); }
+    else w.hinge.rotation.set(0, -w.s * 0.14, 0.09);
+  }
+  // Beine: Dreifussgang
+  const amp = flying ? 0 : Math.min(1, f.v / 6);
+  for (const L of F.legs) {
+    const ph = f.legPhase + (L.grp ? Math.PI : 0), sw = Math.sin(ph), lift = Math.max(0, Math.cos(ph)) * amp;
+    const yaw = L.a0 + sw * 0.35 * amp;
+    L.hip.rotation.y = L.s > 0 ? -Math.PI / 2 + yaw : Math.PI / 2 - yaw;
+    L.coxa.rotation.z = -0.6;
+    L.femur.rotation.z = flying ? 1.5 : 0.95 + lift * 0.4;
+    L.tibia.rotation.z = flying ? -2.3 : -0.9 - lift * 0.25;
+    L.tarsus.rotation.z = flying ? -0.5 : 0.4 - lift * 0.2;
+  }
+  flyMarker.position.set(f.x, (world.mode === "wiese" ? groundAt(f.x, f.z) : 0) + 0.06, f.z);
+  const camDist = camera.position.distanceTo(F.root.position); flyMarker.visible = camMode !== "fpv" && (camDist > 60 || (world.mode === "labor" && camDist > 25)); flyMarker.scale.setScalar(clamp(camDist / 120, 0.5, 4));
+}
+
+// =====================================================================
+// Labor: T-Labyrinth
+// =====================================================================
+const labGroup = new THREE.Group(); labGroup.visible = false; scene.add(labGroup);
+const TUBE_R = 7, ARM = 70, TRAIN_X0 = -95, TRAIN_X1 = -8;
+const lab = { A: null, B: null, us: "strafe", steps: [], i: 0, t: 0, running: false, odorNow: null, mist: [], bias: null, biasKey: null, res: null, arms: { L: null, R: null }, choice: null, flyPath: null, labels: {} };
+let sparkGroup, sparkUntil = 0;
+{
+  const tableTex = canvasTex(512, 512, (g, w, h) => { g.fillStyle = "#9aa3ad"; g.fillRect(0, 0, w, h); for (let i = 0; i < 3000; i++) { g.fillStyle = `rgba(60,70,85,${rnd() * 0.15})`; g.fillRect(rnd() * w, rnd() * h, 2, 2); } g.strokeStyle = "rgba(255,255,255,.12)"; for (let x = 0; x < w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); } });
+  tableTex.wrapS = tableTex.wrapT = THREE.RepeatWrapping; tableTex.repeat.set(6, 6);
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ map: tableTex, roughness: 0.6 })); table.rotation.x = -Math.PI / 2; table.receiveShadow = true; table.name = "ground"; labGroup.add(table);
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(900, 300, 900), new THREE.MeshStandardMaterial({ color: 0x3c4658, side: THREE.BackSide, roughness: 0.9 })); wall.position.y = 149; labGroup.add(wall);
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, transmission: 0.9, thickness: 0.3, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+  const mkTube = (len, axis) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(TUBE_R, TUBE_R, len, 48, 1, true), glass); m.renderOrder = 3; if (axis === "x") m.rotation.z = Math.PI / 2; else m.rotation.x = Math.PI / 2; return m; };
+  const tr = mkTube(TRAIN_X1 - TRAIN_X0, "x"); tr.position.set((TRAIN_X0 + TRAIN_X1) / 2, TUBE_R, 0); labGroup.add(tr);
+  const arms = mkTube(ARM * 2, "z"); arms.position.set(0, TUBE_R, 0); labGroup.add(arms);
+  // Kupfergitter im Trainingsrohr
+  const pts = []; for (let i = 0; i <= 900; i++) { const t = i / 900, a = t * Math.PI * 2 * 60; pts.push(new THREE.Vector3(lerp(TRAIN_X0 + 3, TRAIN_X1 - 2, t), TUBE_R + Math.sin(a) * (TUBE_R - 0.25), Math.cos(a) * (TUBE_R - 0.25))); }
+  const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 1800, 0.12, 5, false), new THREE.MeshStandardMaterial({ color: 0xc8733a, metalness: 0.85, roughness: 0.35 }));
+  labGroup.add(coil);
+  // Funken
+  sparkGroup = new THREE.Group(); sparkGroup.visible = false; labGroup.add(sparkGroup);
+  const sm = new THREE.MeshBasicMaterial({ color: 0xbfe6ff });
+  for (let i = 0; i < 40; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 2.5), sm); const t = rnd(), a = rnd() * 6.28; s.position.set(lerp(TRAIN_X0 + 4, TRAIN_X1 - 4, t), TUBE_R + Math.sin(a) * 6.2, Math.cos(a) * 6.2); s.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); sparkGroup.add(s); }
+  // Duftflaeschchen mit Schildern
+  for (const side of [-1, 1]) {
+    const vial = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 16, 32, 1, true), glass); vial.position.set(0, 8, side * (ARM + 8)); labGroup.add(vial);
+    const liq = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 5.6, 6, 32), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, roughness: 0.1 })); liq.position.set(0, 3, side * (ARM + 8)); labGroup.add(liq);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(36, 12), new THREE.MeshBasicMaterial({ transparent: true })); sign.position.set(0, 26, side * (ARM + 8)); labGroup.add(sign);
+    lab.labels[side < 0 ? "L" : "R"] = { liq, sign };
+  }
+  const tsign = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), new THREE.MeshBasicMaterial({ transparent: true })); tsign.position.set(TRAIN_X0 + 20, 19, -4); tsign.rotation.y = 0.3; labGroup.add(tsign); lab.labels.T = { sign: tsign };
+}
+function signTex(text, sub, color) {
+  return canvasTex(512, 170, (g, w, h) => {
+    g.fillStyle = "rgba(255,255,255,.94)"; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 26); g.fill();
+    g.fillStyle = color || "#172036"; g.font = "bold 62px sans-serif"; g.textAlign = "center"; g.fillText(text, w / 2, 78);
+    if (sub) { g.font = "40px sans-serif"; g.fillStyle = "#5a6680"; g.fillText(sub, w / 2, 136); }
+  });
+}
+function setSign(mesh, text, sub, color) { if (mesh.material.map) mesh.material.map.dispose(); mesh.material.map = signTex(text, sub, color); mesh.material.needsUpdate = true; }
+function sparks(ms) { sparkUntil = performance.now() + ms; }
+
+// Protokoll erzeugen
+function choiceSteps(withWalk, phase) {
+  const st = [], left = Math.random() < 0.5 ? "A" : "B", right = left === "A" ? "B" : "A";
+  st.push({ kind: "arms", left, right, ms: 0, phase });
+  for (let r = 0; r < 2; r++) {
+    st.push({ kind: "sample", odor: left, look: -1, ms: 500, phase }); st.push({ kind: "air", look: 0, ms: 200, phase });
+    st.push({ kind: "sample", odor: right, look: 1, ms: 500, phase }); st.push({ kind: "air", look: 0, ms: 200, phase });
+  }
+  st.push({ kind: "decide", ms: 0, phase });
+  if (withWalk) { st.push({ kind: "walk", ms: 1100, phase }); st.push({ kind: "back", ms: 250, phase }); }
+  return st;
+}
+function buildProtocol(train) {
+  const st = [], reps = +$("#repSel").value;
+  const key = lab.A + "|" + lab.B;
+  if (lab.bias == null || lab.biasKey !== key) { st.push({ kind: "phase", name: "abgleich", label: "Abgleich der Duftstärken (naive Fliege soll 50 : 50 wählen)", ms: 0 }); for (let k = 0; k < 10; k++) st.push(...choiceSteps(false, "abgleich")); st.push({ kind: "bias", ms: 0 }); }
+  st.push({ kind: "phase", name: "vorher", label: "Test vorher: 20 Wahlen", ms: 0 }); for (let k = 0; k < 20; k++) st.push(...choiceSteps(true, "vorher"));
+  if (train) {
+    st.push({ kind: "phase", name: "training", label: `Training: ${lab.A} + ${lab.us === "strafe" ? "Strom" : "Zucker"}, ${lab.B} ohne`, ms: 0 });
+    st.push({ kind: "toTube", ms: 600 });
+    for (let s = 0; s < reps; s++) { st.push({ kind: "train", odor: "A", ms: 400 }); st.push({ kind: "train", odor: "A", us: true, ms: 800 }); st.push({ kind: "train", odor: "A", ms: 300 }); st.push({ kind: "train", odor: null, ms: 300 }); }
+    st.push({ kind: "train", odor: null, ms: 1500 });
+    for (let s = 0; s < reps; s++) { st.push({ kind: "train", odor: "B", ms: 1500 }); st.push({ kind: "train", odor: null, ms: 300 }); }
+    st.push({ kind: "train", odor: null, ms: 1500 });
+    st.push({ kind: "toChoice", ms: 600 });
+    st.push({ kind: "phase", name: "nachher", label: "Test nachher: 20 Wahlen", ms: 0 }); for (let k = 0; k < 20; k++) st.push(...choiceSteps(true, "nachher"));
+  }
+  st.push({ kind: "end", ms: 0 });
+  return st;
+}
+function startLab(train) {
+  if (!brainReady) return;
+  setScene("labor");
+  lab.A = $("#csPlus").value; lab.B = $("#csMinus").value; lab.us = $("#usSel").value;
+  if (lab.A === lab.B) { toast("Wähle zwei verschiedene Düfte."); return; }
+  lab.steps = buildProtocol(train); lab.i = 0; lab.t = 0; lab.running = true; lab.train = train;
+  lab.res = { vorher: { a: 0, n: 0, dv: [] }, nachher: { a: 0, n: 0, dv: [] }, abgleich: { dv: [] } };
+  lab.cur = null; lab.phaseName = null; lab.totalMs = lab.steps.reduce((a, s) => a + s.ms, 0); lab.doneMs = 0;
+  for (const n of [lab.A, lab.B]) if (!kcSets.has(n)) kcSets.set(n, new Set());
+  Object.assign(fly, { x: -4, z: 0, h: 0, y: 0.55, mode: "walk", v: 0, prob: 0, headYaw: 0 });
+  lab.flyPath = null; lab.mist = [];
+  setSign(lab.labels.T.sign, "Trainingsrohr", lab.us === "strafe" ? "Kupfergitter unter Strom" : "Zuckerpapier");
+  $("#trainBtn").disabled = true; $("#testBtn").disabled = true; $("#stopBtn").disabled = false; $("#phaseBar").hidden = false;
+  log(`<b>Labor: ${train ? "Training + Test" : "Test"} – Duft A ${esc(lab.A)}${train ? (lab.us === "strafe" ? " + Strom" : " + Zucker") : ""}, Duft B ${esc(lab.B)}</b>`);
+  if (speed === 1) { speed = 0; $("#speedSel").value = "0"; }
+  renderResults();
+}
+function stopLab(msg) {
+  lab.running = false; lab.odorNow = null; lab.mist = []; sampler.on = false;
+  if (speed === 0) { speed = 1; $("#speedSel").value = "1"; wallRef = performance.now() - worldMs; }
+  $("#trainBtn").disabled = false; $("#testBtn").disabled = false; $("#stopBtn").disabled = true; $("#phaseBar").hidden = true;
+  if (msg) $("#phaseLine").textContent = msg;
+}
+function labStep(ms) {
+  if (!lab.running) { lab.odorNow = null; return; }
+  let st = lab.steps[lab.i];
+  // Schritte ohne Dauer sofort abarbeiten
+  let guard = 0;
+  while (st && st.ms === 0 && guard++ < 20) { instantStep(st); lab.i++; st = lab.steps[lab.i]; lab.t = 0; if (!lab.running) return; }
+  if (!st) { stopLab(); return; }
+  if (lab.t === 0) enterStep(st);
+  lab.t += ms; lab.doneMs += ms;
+  if (lab.t >= st.ms) { exitStep(st); lab.i++; lab.t = 0; }
+  $("#phaseBar span").style.width = Math.min(100, lab.doneMs / Math.max(1, lab.totalMs) * 100) + "%";
+}
+const odorName = (ab) => (ab === "A" ? lab.A : ab === "B" ? lab.B : null);
+function enterStep(st) {
+  lab.cur = st;
+  if (st.kind === "sample") { lab.odorNow = odorName(st.odor); startSample(); }
+  else if (st.kind === "train") { lab.odorNow = odorName(st.odor); if (st.us) { giveUS(lab.us, st.ms); } lab.mist = st.odor ? [{ x0: TRAIN_X0 + 4, x1: TRAIN_X1 - 2, z0: 0, z1: 0, odor: lab.odorNow }] : []; }
+  else lab.odorNow = null;
+  if (st.kind === "air" || st.kind === "walk" || st.kind === "back" || st.kind === "toTube" || st.kind === "toChoice") lab.odorNow = null;
+  if (st.kind === "walk") { const side = lab.choice.side; lab.flyPath = { from: [-3, 0], to: [-1, side === "L" ? -38 : 38], t: 0, ms: st.ms }; }
+  if (st.kind === "toTube") lab.flyPath = { from: [fly.x, fly.z], to: [-50, 0], t: 0, ms: st.ms, teleport: true };
+  if (st.kind === "toChoice") lab.flyPath = { from: [fly.x, fly.z], to: [-4, 0], t: 0, ms: st.ms, teleport: true };
+}
+function exitStep(st) {
+  if (st.kind === "sample") { const v = endSample(); lab.choice[st.odor === "A" ? "va" : "vb"] += v / 2; }
+  if (st.kind === "back") { Object.assign(fly, { x: -4, z: 0, h: 0, headYaw: 0 }); lab.flyPath = null; }
+  if (st.kind === "toTube" || st.kind === "toChoice") lab.flyPath = null;
+}
+function instantStep(st) {
+  if (st.kind === "phase") { lab.phaseName = st.name; $("#phaseLine").innerHTML = `<b>${esc(st.label)}</b>`; log(esc(st.label)); }
+  else if (st.kind === "arms") {
+    lab.choice = { left: st.left, right: st.right, va: 0, vb: 0, phase: st.phase };
+    lab.mist = [{ x0: 0, x1: 0, z0: -ARM, z1: -10, odor: odorName(st.left) }, { x0: 0, x1: 0, z0: 10, z1: ARM, odor: odorName(st.right) }];
+    for (const [k, ab] of [["L", st.left], ["R", st.right]]) { const n = odorName(ab); setSign(lab.labels[k].sign, n, ab === "A" ? "Duft A" : "Duft B", ab === "A" ? "#c23a3a" : "#0a8f86"); lab.labels[k].liq.material.color.copy(odorColorFor(n)); }
+    Object.assign(fly, { x: -4, z: 0, h: 0 });
+  } else if (st.kind === "decide") {
+    const c = lab.choice, dv = c.va - c.vb, bias = lab.bias == null ? 0 : lab.bias;
+    const pA = 1 / (1 + Math.exp(-S.TMAZE.beta * (dv - bias)));
+    const toA = Math.random() < pA, side = (toA ? "A" : "B") === c.left ? "L" : "R";
+    c.side = side; c.toA = toA; c.pA = pA;
+    const R = lab.res[c.phase]; R.dv.push(dv);
+    if (c.phase !== "abgleich") { R.n++; if (toA) R.a++; }
+    renderResults();
+  } else if (st.kind === "bias") {
+    const d = lab.res.abgleich.dv; lab.bias = d.reduce((a, b) => a + b, 0) / d.length; lab.biasKey = lab.A + "|" + lab.B;
+    log(`Abgleich: Ohne Training bewertet ihr Pilzkörper ${esc(lab.A)} ${lab.bias > 0 ? "um " + fmt2.format(lab.bias) + " besser" : "um " + fmt2.format(-lab.bias) + " schlechter"} als ${esc(lab.B)}. Das wird ausgeglichen, wie beim Einstellen der Duftstärken im Labor.`);
+  } else if (st.kind === "end") {
+    const r = lab.res; stopLab("Fertig.");
+    if (lab.train) log(`<b>Ergebnis:</b> vorher ${r.vorher.a}/${r.vorher.n}, nachher ${r.nachher.a}/${r.nachher.n} Mal zu ${esc(lab.A)}. ${verdict().text}`);
+    else log(`<b>Test:</b> ${r.vorher.a}/${r.vorher.n} Mal zu ${esc(lab.A)}.`);
+  }
+}
+function animateLabFly(dt) {
+  const f = fly, st = lab.cur;
+  f.shake = Math.max(0, f.shake - dt);
+  f.prob += ((US.kind === "belohnung" && worldMs < US.until ? 0.8 : 0) - f.prob) * Math.min(1, dt * 8);
+  if (lab.flyPath) {
+    const p = lab.flyPath; p.t += dt * 1000; const k = clamp(p.t / p.ms, 0, 1);
+    if (p.teleport) { if (k > 0.5) { f.x = p.to[0]; f.z = p.to[1]; } f.v = 0; }
+    else { const e = k * k * (3 - 2 * k); const nx = lerp(p.from[0], p.to[0], e) + Math.sin(k * Math.PI) * 2, nz = lerp(p.from[1], p.to[1], Math.max(0, (e - 0.15) / 0.85)); const dx = nx - f.x, dz = nz - f.z; if (Math.hypot(dx, dz) > 1e-4) f.h = Math.atan2(dz, dx); f.v = Math.hypot(dx, dz) / dt; f.x = nx; f.z = nz; }
+  } else if (st && st.kind === "train") {
+    // im Rohr hin und her laufen
+    if (!lab.tubeDir) lab.tubeDir = 1;
+    if (f.x > TRAIN_X1 - 14) lab.tubeDir = -1; if (f.x < TRAIN_X0 + 14) lab.tubeDir = 1;
+    const vt = US.kind === "strafe" && worldMs < US.until ? 14 : 5;
+    f.v += (vt - f.v) * Math.min(1, dt * 5); f.h += angDiff(lab.tubeDir > 0 ? 0 : Math.PI, f.h) * Math.min(1, dt * 6); f.x += Math.cos(f.h) * f.v * dt; f.z = clamp(f.z + Math.sin(f.h) * f.v * dt, -2, 2);
+  } else { f.v *= 0.8; }
+  const look = st && (st.kind === "sample" || st.kind === "air") ? st.look : 0;
+  f.headYaw += (look * 0.55 - f.headYaw) * Math.min(1, dt * 10);
+  if (st && st.kind === "sample") f.h += angDiff(look * 0.6, f.h) * Math.min(1, dt * 6);
+  f.y = 0.55; f.legPhase += f.v * dt * 3.6;
+}
+function renderResults() {
+  const r = lab.res; if (!r) { $("#results").innerHTML = ""; return; }
+  const box = (title, R) => {
+    const pa = R.n ? R.a / R.n : 0;
+    return `<div class="resbox"><span class="note">${title}</span><span class="big">${R.n ? fmt0.format(pa * 100) + " %" : "–"}</span><span class="note">wählt ${esc(lab.A)} (Duft A) · ${R.a} von ${R.n}</span>
+      <div class="choicebar"><span>A ${R.a}</span><div class="t"><i class="a" style="width:${pa * 100}%"></i><i class="b" style="width:${R.n ? (1 - pa) * 100 : 0}%"></i></div><span>B ${R.n - R.a}</span></div></div>`;
+  };
+  let summary = "";
+  if (lab.train && r.nachher.n === 20) {
+    const v = verdict();
+    summary = `<div class="resbox"><span class="note">Lerneffekt (${lab.us === "strafe" ? "weniger" : "mehr"} zu Duft A)</span><span class="big" style="color:${v.ok ? "var(--good)" : "var(--muted)"}">${v.idx >= 0 ? "+" : "−"}${fmt0.format(Math.abs(v.idx) * 100)} Punkte</span><span class="note">Bewertung A − B im Pilzkörper: vorher ${fmt2.format(v.v0)}, nachher ${fmt2.format(v.v1)}. ${esc(v.text)}</span></div>`;
+  }
+  $("#results").innerHTML = box("Test vorher", r.vorher) + (lab.train ? box("Test nachher", r.nachher) : "") + summary;
+}
+const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+// Urteil: Verhalten UND Bewertung im Pilzkoerper muessen sich in die erwartete Richtung bewegen
+function verdict() {
+  const r = lab.res, dir = lab.us === "strafe" ? -1 : 1;
+  const idx = dir * (r.nachher.a / Math.max(1, r.nachher.n) - r.vorher.a / Math.max(1, r.vorher.n));
+  const v0 = avg(r.vorher.dv) - (lab.bias || 0), v1 = avg(r.nachher.dv) - (lab.bias || 0), dv = dir * (v1 - v0);
+  if (idx >= 0.15 && dv >= 0.15) return { ok: true, idx, v0, v1, text: "Sie hat gelernt! ✔" };
+  if (dv >= 0.15) return { ok: false, idx, v0, v1, text: "Das Gedächtnis ist da (Bewertung verschoben), im Verhalten aber noch knapp." };
+  if (idx >= 0.15) return { ok: false, idx, v0, v1, text: "Das Verhalten hat sich geändert, aber die Bewertung kaum – vermutlich Zufall." };
+  return { ok: false, idx, v0, v1, text: "Kein Lerneffekt." };
+}
+$("#trainBtn").addEventListener("click", () => startLab(true));
+$("#testBtn").addEventListener("click", () => startLab(false));
+$("#stopBtn").addEventListener("click", () => { stopLab("Abgebrochen."); log("Labor-Versuch abgebrochen."); });
+
+// =====================================================================
+// Szenen, Kamera, Werkzeuge
+// =====================================================================
+function setScene(name) {
+  if (world.mode === name) return;
+  world.mode = name;
+  document.querySelectorAll("[data-scene]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.scene === name)));
+  meadow.visible = name === "wiese"; labGroup.visible = name === "labor";
+  $("#toolRow").hidden = name !== "wiese";
+  threat = null; US.kind = null;
+  if (name === "wiese") {
+    if (lab.running) stopLab("Abgebrochen (zur Wiese gewechselt).");
+    scene.background = new THREE.Color(0xa9cdef); scene.fog = new THREE.Fog(0xa9cdef, 180, 900);
+    hemi.color.set(0xdcecff); hemi.groundColor.set(0x6a5a3a); hemi.intensity = 1.5; sun.intensity = 2.8; renderer.toneMappingExposure = 1.05;
+    Object.assign(fly, { x: 0, z: 0, mode: "walk", y: 0.55, v: 0 });
+    if (speed === 0) { speed = 1; $("#speedSel").value = "1"; wallRef = performance.now() - worldMs; }
+  } else {
+    scene.background = new THREE.Color(0x2c3444); scene.fog = null;
+    hemi.color.set(0xe8eefc); hemi.groundColor.set(0x5a6070); hemi.intensity = 0.9; sun.intensity = 1.5;
+    renderer.toneMappingExposure = 0.9;
+    Object.assign(fly, { x: -4, z: 0, h: 0, mode: "walk", y: 0.55, v: 0, prob: 0 });
+    setSign(lab.labels.L.sign, "linker Arm", ""); setSign(lab.labels.R.sign, "rechter Arm", ""); setSign(lab.labels.T.sign, "Trainingsrohr", "Kupfergitter");
+  }
+  camJump = true;
+}
+document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => setScene(b.dataset.scene)));
+let camMode = "follow", camJump = true; const lastTarget = new THREE.Vector3();
+document.querySelectorAll("[data-cam]").forEach((b) => b.addEventListener("click", () => {
+  camMode = b.dataset.cam; document.querySelectorAll("[data-cam]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  controls.enabled = camMode !== "fpv"; camJump = true;
+}));
+const ICONS = {
+  zucker: `<svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="2" fill="#fbfaf6" stroke="#b9b09c"/></svg>`,
+  banane: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#f3d45a"/><circle cx="10" cy="10" r="5.5" fill="#fbf1c4"/></svg>`,
+  blume: `<svg viewBox="0 0 20 20">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="10" cy="5" rx="2.6" ry="4" fill="#ee8fb5" transform="rotate(${a} 10 10)"/>`).join("")}<circle cx="10" cy="10" r="2.6" fill="#f6c33b"/></svg>`,
+  bitter: `<svg viewBox="0 0 20 20"><circle cx="10" cy="11" r="7" fill="#b6e3a8" stroke="#4f8f55"/><text x="10" y="15" font-size="10" text-anchor="middle" fill="#2f6b37" font-weight="700">!</text></svg>`,
+  essig: `<svg viewBox="0 0 20 20"><path d="M5 4h10l-1 13H6z" fill="#e8d7c0" stroke="#9a5a1e"/><rect x="6" y="9" width="8" height="7" fill="#9a5a1e"/></svg>`,
+  hand: `<svg viewBox="0 0 20 20"><path d="M6 18c-2-3-3-6-2-8l2 2V4a1.2 1.2 0 0 1 2.4 0v5V3a1.2 1.2 0 0 1 2.4 0v6V4a1.2 1.2 0 0 1 2.4 0v6l.8-2a1.2 1.2 0 0 1 2.2 1l-1.6 6c-.6 2-2 3-4 3z" fill="#e0a98a"/></svg>`,
+  fliege: `<svg viewBox="0 0 20 20"><ellipse cx="8" cy="10" rx="5" ry="3" fill="#c79a55"/><ellipse cx="14" cy="10" rx="2" ry="3" fill="#c2241c"/></svg>`,
+  weg: `<svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+};
+const TOOLS = [["zucker", "Zucker"], ["banane", "Banane"], ["blume", "Blume"], ["essig", "Essig"], ["bitter", "Bitterköder"], ["hand", "Hand"], ["fliege", "Fliege setzen"], ["weg", "Entfernen"]];
+let tool = "hand";
+function renderTools() { $("#tools").innerHTML = TOOLS.map(([k, n]) => `<button class="tool" data-tool="${k}" aria-pressed="${k === tool}" title="${n}" aria-label="${n}">${ICONS[k]}<span class="lbl">${n}</span></button>`).join(""); }
+$("#tools").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (!b) return; tool = b.dataset.tool; renderTools(); });
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let downAt = null;
+canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6 || world.mode !== "wiese" || !brainReady) return;
+  const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const p = new THREE.Vector3(); if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return;
+  if (Math.hypot(p.x, p.z) > ARENA_R + 30) { toast("Bitte näher an der Fliege platzieren."); return; }
+  if (KINDS[tool]) { addItem(tool, p.x, p.z); log(`${KINDS[tool].name} hingelegt.`); }
+  else if (tool === "hand") launchThreat(p.x, p.z);
+  else if (tool === "fliege") Object.assign(fly, { x: p.x, z: p.z, mode: "walk", v: 0 });
+  else if (tool === "weg") { let best = null, bd = 14; for (const it of items) { const d = Math.hypot(it.x - p.x, it.z - p.z); if (d < bd) { bd = d; best = it; } } if (best) { log(`${KINDS[best.kind].name} entfernt.`); removeItem(best); } }
+});
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.tm); toast.tm = setTimeout(() => (t.hidden = true), 2600); }
 
 // =====================================================================
 // Tagebuch
 // =====================================================================
 function log(html) {
-  const s = Math.floor(worldMs / 1000);
-  const el = document.createElement("div");
+  const s = Math.floor(worldMs / 1000); const el = document.createElement("div");
   el.innerHTML = `<time>${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</time><span>${html}</span>`;
-  $("#log").prepend(el);
-  while ($("#log").children.length > 60) $("#log").lastChild.remove();
+  $("#log").prepend(el); while ($("#log").children.length > 80) $("#log").lastChild.remove();
 }
 $("#clearLog").addEventListener("click", () => { $("#log").innerHTML = ""; });
 
 // =====================================================================
-// Fertige Experimente
+// Experimente
 // =====================================================================
-function resetKo() { koOn.clear(); customKo.length = 0; silenceDirty = true; renderKo(); }
-function placeFlyNear(it, dist) { const a = Math.random() * 6.28; Object.assign(fly, { x: it.x + Math.cos(a) * dist, y: it.y + Math.sin(a) * dist, th: a + Math.PI, mode: "walk", alt: 0, v: 0, prob: 0 }); }
+function resetKo() { koOn.clear(); customKo.length = 0; silenceDirty = true; renderKo(); if (!learningOn) { learningOn = true; learnDirty = true; $("#learnOn").checked = true; } }
+function meadowSetup(list, flyAt, hunger) { setScene("wiese"); clearItems(); for (const [k, x, z] of list) addItem(k, x, z); Object.assign(fly, { x: flyAt[0], z: flyAt[1], h: flyAt[2] || 0, mode: "walk", v: 0, prob: 0, hunger }); threat = null; $("#hunger").value = hunger * 100; }
+function labSetup(a, b, us, opts = {}) { setScene("labor"); $("#csPlus").value = a; $("#csMinus").value = b; $("#usSel").value = us; $("#repSel").value = String(opts.reps || 6); forgetPending = true; lab.bias = null; setTimeout(() => startLab(true), 50); }
 const EXPS = [
-  { t: "Hungrige Fliege findet Zucker", d: "Hunger 80 %. Riecht sie die Banane, läuft hin und frisst?",
-    go: () => { resetKo(); items = [{ kind: "obst", x: 55, y: 25, amount: 1, id: 1 }]; odorDirty = true; Object.assign(fly, { x: 20, y: 25, th: 0, mode: "walk", hunger: 0.8, prob: 0 }); } },
-  { t: "Mutante ohne „Roundup“", d: "Gleiche Banane, aber das Zwischenneuron Roundup ist stumm. Sie steht drauf … und frisst nicht.",
-    go: () => { resetKo(); koOn.add("roundup"); silenceDirty = true; renderKo(); items = [{ kind: "obst", x: 40, y: 25, amount: 1, id: 2 }]; odorDirty = true; placeFlyNear(items[0], 1.5); fly.hunger = 0.8; } },
-  { t: "Bitterköder", d: "Zucker mit Bitterstoff. Die Bitter-Neuronen hemmen den Fressbefehl.",
-    go: () => { resetKo(); items = [{ kind: "bitter", x: 40, y: 25, amount: 1, id: 3 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.8; } },
-  { t: "… ohne Bitter-Geschmack", d: "Dieselbe Falle, aber die Bitter-Neuronen sind stumm. Jetzt frisst sie den Köder.",
-    go: () => { resetKo(); koOn.add("bitter"); silenceDirty = true; renderKo(); items = [{ kind: "bitter", x: 40, y: 25, amount: 1, id: 4 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.8; } },
-  { t: "Erschrecken von links", d: "Eine Hand kommt von links. LC4 → Riesenfaser → Absprung.",
-    go: () => { resetKo(); items = []; odorDirty = true; Object.assign(fly, { x: 40, y: 25, th: 0, mode: "walk", v: 0, pause: 1.5 }); setTimeout(() => launchThreat(40, 8), 300); } },
-  { t: "… ohne Riesenfaser", d: "Riesenfaser stumm: Sie sieht die Hand und dreht weg, kann aber nicht abspringen.",
-    go: () => { resetKo(); koOn.add("gf"); silenceDirty = true; renderKo(); items = []; odorDirty = true; Object.assign(fly, { x: 40, y: 25, th: 0, mode: "walk", v: 0, pause: 1.5 }); setTimeout(() => launchThreat(40, 8), 300); } },
-  { t: "Satte Fliege", d: "Hunger 5 %. Die Zucker-Neuronen feuern schwach – reicht das für MN9?",
-    go: () => { resetKo(); items = [{ kind: "zucker", x: 40, y: 25, amount: 1, id: 5 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.05; } },
+  { tag: "Labor", t: "Lernen mit Strafe", d: "Ethylacetat + Strom, Octanol ohne. Meidet sie danach Ethylacetat?", go: () => { resetKo(); labSetup("Ethylacetat", "3-Octanol", "strafe"); } },
+  { tag: "Labor", t: "Lernen mit Belohnung", d: "Ethylacetat + Zucker, Octanol ohne. Läuft sie danach lieber zu Ethylacetat?", go: () => { resetKo(); labSetup("Ethylacetat", "3-Octanol", "belohnung"); } },
+  { tag: "Mutante", t: "Lernmutante rutabaga", d: "Gleiches Strafe-Training, aber das Lernsignal fehlt (Lernen aus).", go: () => { resetKo(); learningOn = false; learnDirty = true; $("#learnOn").checked = false; labSetup("Ethylacetat", "3-Octanol", "strafe"); } },
+  { tag: "Mutante", t: "Ohne PPL1-Dopamin", d: "Die Strafe-Dopaminneuronen sind stumm: Strom kommt im Lernzentrum nicht an (Aso et al. 2010).", go: () => { resetKo(); setKo("ppl1", true, true); labSetup("Ethylacetat", "3-Octanol", "strafe"); } },
+  { tag: "Wiese", t: "Hungrige Fliege, Banane und Blumen", d: "Was riecht verlockend? Ihr Pilzkörper bewertet echte Duftmischungen.", go: () => { resetKo(); forgetPending = true; meadowSetup([["banane", 42, 18], ["blume", -38, -30], ["blume", -55, 30], ["zucker", 20, -45], ["essig", 60, -35]], [0, 0, 0], 0.8); } },
+  { tag: "Wiese", t: "Banane verleiden", d: "Jedes Mal, wenn sie die Banane stark riecht, gibt es Strom (3×). Meidet sie die Banane danach?", go: () => { resetKo(); forgetPending = true; meadowSetup([["banane", 30, 0], ["blume", -40, 25]], [5, 0, 0], 0.8); autoZap = { left: 3, cool: 0, odor: "Banane" }; log("Automatik: Strom, sobald sie Banane stark riecht (3×)."); } },
+  { tag: "Wiese", t: "Bitterköder", d: "Zucker mit Chinin. Bitter-Neuronen hemmen den Fressbefehl.", go: () => { resetKo(); meadowSetup([["bitter", 0, 0]], [-1.5, 0, 0], 0.8); } },
+  { tag: "Mutante", t: "Mutante ohne „Roundup“", d: "Sie steht auf dem Zucker, aber MN9 bleibt still.", go: () => { resetKo(); setKo("roundup", true, true); meadowSetup([["zucker", 0, 0]], [-1.5, 0, 0], 0.8); } },
+  { tag: "Wiese", t: "Hand von links", d: "LC4 → Riesenfaser → Absprung. Mit „Riesenfaser stumm“ dreht sie nur weg.", go: () => { resetKo(); meadowSetup([], [0, 0, 0], 0.5); fly.pause = 2; setTimeout(() => launchThreat(0, -40), 400); } },
 ];
+let autoZap = null;
 function renderExps() {
-  $("#exps").innerHTML = EXPS.map((x, n) => `<button class="expbtn" data-exp="${n}"><b>${esc(x.t)}</b><span>${esc(x.d)}</span></button>`).join("");
-  $("#exps").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-exp]"); if (!b || !brainReady) return;
-    threat = null; resetBrain(); const x = EXPS[+b.dataset.exp]; x.go();
-    if (!running) $("#pauseBtn").click();
-    log(`<b>Experiment: ${esc(x.t)}</b>`);
-    $("#world").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
+  $("#exps").innerHTML = EXPS.map((x, n) => `<button class="expbtn" data-exp="${n}"><b><span class="tag">${x.tag}</span>${esc(x.t)}</b><span>${esc(x.d)}</span></button>`).join("");
+  $("#exps").addEventListener("click", (e) => { const b = e.target.closest("[data-exp]"); if (!b || !brainReady) return; autoZap = null; const x = EXPS[+b.dataset.exp]; log(`<b>Experiment: ${esc(x.t)}</b>`); x.go(); if (!running) $("#pauseBtn").click(); $("#stage").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
+}
+function autoZapTick() {
+  if (!autoZap || world.mode !== "wiese") return;
+  autoZap.cool -= CHUNK;
+  if (autoZap.left > 0 && autoZap.cool <= 0 && senses.dominant === autoZap.odor && senses.odorTotal > 0.35) {
+    giveUS("strafe", 1000); autoZap.left--; autoZap.cool = 4000;
+    log(`⚡ Strom beim Bananenduft (${3 - autoZap.left}/3).`);
+    if (!autoZap.left) { log("Training vorbei. Beobachte, ob sie die Banane jetzt meidet (Bewertung im Gehirn-Panel)."); autoZap = null; }
+  }
+}
+
+// =====================================================================
+// Hauptschleife (Darstellung)
+// =====================================================================
+function resize() {
+  const r = canvas.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  resizeBrain();
+}
+new ResizeObserver(resize).observe(canvas);
+let lastT = performance.now(), frame = 0;
+function render(now) {
+  const dtF = Math.min(0.1, (now - lastT) / 1000); lastT = now; frame++;
+  poseFly(dtF, now);
+  // Hand
+  handGroup.visible = !!threat && world.mode === "wiese";
+  if (threat) { handGroup.position.set(threat.x, threat.y + 6, threat.z); handGroup.rotation.y = Math.atan2(fly.x - threat.x, fly.z - threat.z); }
+  // Funken
+  sparkGroup.visible = world.mode === "labor" && performance.now() < sparkUntil && (frame % 3 !== 0);
+  if (sparkGroup.visible) sparkGroup.children.forEach((s) => s.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3));
+  updateOdorPts(dtF);
+  // Kamera
+  const target = new THREE.Vector3(fly.x, fly.y + 0.3, fly.z);
+  if (camMode === "fpv") {
+    const hx = Math.cos(fly.h + fly.headYaw), hz = Math.sin(fly.h + fly.headYaw);
+    camera.position.set(fly.x + Math.cos(fly.h) * 0.9, fly.y + 0.45, fly.z + Math.sin(fly.h) * 0.9);
+    camera.lookAt(fly.x + hx * 30, fly.y - 1.5, fly.z + hz * 30);
+  } else if (camMode === "follow") {
+    if (camJump) { const back = world.mode === "labor" ? new THREE.Vector3(-20, 34, 46) : new THREE.Vector3(-9, 6.5, 9); controls.target.copy(target); camera.position.copy(target).add(back); camJump = false; lastTarget.copy(target); }
+    const d = target.clone().sub(lastTarget).multiplyScalar(world.mode === "labor" ? 0.25 : 1);
+    controls.target.add(d); camera.position.add(d); lastTarget.add(d);
+    controls.update();
+  } else { if (camJump) { controls.target.copy(target); camera.position.copy(target).add(new THREE.Vector3(-60, 55, 70)); camJump = false; } controls.update(); }
+  // Sonne folgt der Fliege (scharfe Schatten)
+  sun.position.set(fly.x + 60, 120, fly.z + 40); sun.target.position.set(fly.x, 0, fly.z);
+  renderer.render(scene, camera);
+  if (frame % 2 === 0) drawBrainLive();
+  if (frame % 4 === 0) { updateMeters(); updateHud(); }
+  if (frame % 40 === 0) renderMemory();
+  requestAnimationFrame(render);
+}
+function updateHud() {
+  const s = Math.floor(worldMs / 1000);
+  const slow = rtFactor < 0.8 * Math.max(1, speed) && running && speed !== 0;
+  const st = lab.cur;
+  let phase = "";
+  if (world.mode === "labor" && lab.running && st) {
+    phase = st.kind === "sample" ? `schnuppert links/rechts: ${esc(odorName(st.odor))}` : st.kind === "train" ? (st.odor ? `riecht ${esc(odorName(st.odor))}${US.kind && worldMs < US.until ? (lab.us === "strafe" ? " + ⚡ Strom" : " + 🍬 Zucker") : ""}` : "frische Luft") : st.kind === "walk" ? `läuft in den ${lab.choice.side === "L" ? "linken" : "rechten"} Arm (${esc(lab.choice.toA ? lab.A : lab.B)})` : "";
+  }
+  $("#hud").innerHTML = `<span class="pill">Zeit <b>${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</b></span>
+    ${world.mode === "wiese" ? `<span class="pill">Hunger <b>${fmt0.format(fly.hunger * 100)} %</b></span><span class="pill">gefressen <b>${fmt1.format(fly.eaten)} s</b></span>` : ""}
+    ${world.mode === "wiese" && senses.dominant && senses.odorTotal > 0.05 ? `<span class="pill">riecht <b>${esc(senses.dominant)}</b></span>` : ""}
+    ${phase ? `<span class="pill phase">${phase}</span>` : ""}
+    ${slow ? `<span class="pill warn">Gehirn rechnet: Zeitlupe ×${fmt1.format(rtFactor)}</span>` : ""}
+    ${speed === 0 && running ? `<span class="pill">Tempo ×${fmt1.format(rtFactor)}</span>` : ""}
+    ${!running ? `<span class="pill">Pause</span>` : ""}`;
+  $("#brainStat").textContent = `${fmt0.format(readout.kcActive)} KC-Spikes/s`;
+  if (frame % 16 === 0) { $("#hungerVal").textContent = fmt0.format(fly.hunger * 100) + " %"; if (document.activeElement !== $("#hunger")) $("#hunger").value = Math.round(fly.hunger * 100); }
 }
 
 // =====================================================================
 // Start
 // =====================================================================
+function fillOdorSelects() {
+  const names = Object.keys(ODORS);
+  const opt = (sel) => names.map((n) => `<option value="${esc(n)}" ${n === sel ? "selected" : ""}>${esc(n)} – ${esc(ODORS[n].riecht)}</option>`).join("");
+  $("#csPlus").innerHTML = opt("Ethylacetat"); $("#csMinus").innerHTML = opt("3-Octanol");
+}
 renderTools(); renderExps();
-new ResizeObserver(() => { resizeWorld(); resizeBrain(); }).observe(cv);
-loadBrain().then(() => {
-  defineGroups(); renderKo(); renderMeters(); resizeWorld(); resizeBrain();
+window.FLYDEBUG = { fly, items, learned, readout, senses, lab };
+loadAll().then(() => {
+  $("#ovText").textContent = "Baue das Gehirn auf (biologische Korrekturen, Lernzentrum) …";
+  return new Promise((r) => setTimeout(r, 30));
+}).then(() => {
+  setupBrain();
+  MIX = {
+    banane: S.mix(ODORS, [["Isoamylacetat", 1], ["Ethylacetat", 0.4], ["Ethanol", 0.3], ["Ethylbutyrat", 0.25]]),
+    blume: S.mix(ODORS, [["Linalool", 0.8], ["Geraniol", 0.5], ["Ocimen", 0.5], ["Methylsalicylat", 0.25]]),
+    essig: S.mix(ODORS, [["Essigsäure", 1], ["Ethylacetat", 0.3], ["Ethanol", 0.2]]),
+  };
+  // Mischungs-Namen fuer die Anzeige
+  KINDS.banane.odor = "banane"; KINDS.blume.odor = "blume"; KINDS.essig.odor = "essig";
+  fillOdorSelects(); renderKo(); renderMeters(); resize();
+  scene.background = new THREE.Color(0xa9cdef); scene.fog = new THREE.Fog(0xa9cdef, 180, 900);
+  for (const [k, x, z] of [["banane", 42, 18], ["blume", -38, -30], ["blume", -55, 30], ["blume", 15, 55], ["zucker", 20, -45], ["bitter", -15, 40], ["essig", 60, -35]]) addItem(k, x, z);
+  ODOR_LABEL();
+  log("Willkommen! Wähle ein Werkzeug und tippe auf die Wiese – oder starte ein Experiment rechts.");
   $("#ovText").textContent = "Gehirn wird verdrahtet …";
-  scene("picknick");
-  log("Tippe ein Werkzeug an und dann in die Welt. Mit der Hand kannst du die Fliege erschrecken.");
   startWorker();
-  const wait = setInterval(() => { if (brainReady) { $("#overlay").hidden = true; clearInterval(wait); } }, 100);
   requestAnimationFrame(render);
 }).catch((err) => {
   console.error(err);
   $("#ovText").innerHTML = location.protocol === "file:" ? "Bitte über einen Webserver öffnen: <code>python3 -m http.server</code> im Repo-Ordner, dann <code>localhost:8000/fliege/welt.html</code>." : "Laden fehlgeschlagen: " + esc(err.message);
 });
+// Duftnamen fuer Mischungen (so heissen sie im Tagebuch und Gedaechtnis)
+function ODOR_LABEL() { const map = { banane: "Banane", blume: "Blume", essig: "Essig" }; for (const k of Object.keys(map)) { MIX[map[k]] = MIX[k]; } KINDS.banane.odor = "Banane"; KINDS.blume.odor = "Blume"; KINDS.essig.odor = "Essig"; ODOR_COL.Banane = ODOR_COL.banane; ODOR_COL.Blume = ODOR_COL.blume; ODOR_COL.Essig = ODOR_COL.essig; }
 </script>
 </body>
 </html>

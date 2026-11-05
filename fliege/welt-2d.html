@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fliegenwelt 2D</title>
+<meta name="description" content="Eine Fruchtfliege mit Körper, gesteuert vom echten FlyWire-Gehirn: Zucker, Obst, Blumen, Bitterköder und Bedrohungen – und Experimente mit Mutanten.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: links die Welt mit Werkzeugleiste und Tagebuch, rechts Gehirn live, Messwerte und Experimente. Auf dem Handy untereinander. */
+  :root {
+    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #f7f8fc; --fg: #172036; --muted: #5a6680; --line: #dde2ee;
+    --accent: #2b4dd8; --accent-soft: #e6ebff;
+    --good: #0a8f86; --good-soft: #dcf3f1; --bad: #c23a3a; --bad-soft: #f8e3e3; --warn: #a5650a; --warn-soft: #f8eedc;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+      --accent: #8ea4ff; --accent-soft: #232d52;
+      --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --warn: #f0b54f; --warn-soft: #3a2c14;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1422; --surface: #171e31; --surface-2: #1c2439; --fg: #e6eaf5; --muted: #98a3bd; --line: #2a3350;
+    --accent: #8ea4ff; --accent-soft: #232d52;
+    --good: #3fd0c4; --good-soft: #133533; --bad: #ff7b7b; --bad-soft: #3a1c22; --warn: #f0b54f; --warn-soft: #3a2c14;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  :root { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: grid; gap: 20px; }
+  h1, h2, h3 { font-family: var(--font-display); margin: 0; line-height: 1.15; }
+  h1 { font-size: clamp(28px, 4.6vw, 42px); }
+  h2 { font-size: 19px; }
+  h3 { font-size: 15px; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); }
+  header { display: grid; gap: 6px; }
+  header .lead { color: var(--muted); max-width: 75ch; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: grid; gap: 20px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spread { justify-content: space-between; }
+
+  .tools { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tool { display: inline-flex; align-items: center; gap: 6px; font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+  .tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .tool svg { width: 20px; height: 20px; flex: none; }
+  .btn { font: 600 14px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px; cursor: pointer; }
+  .btn:hover, .tool:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .btn.primary { color: #0f1422; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0f1422; } }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .world { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 8 / 5; background: #efe6d2; touch-action: none; }
+  @media (max-width: 640px) { .world { aspect-ratio: 1 / 1; } }
+  .world canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+  .pill { background: rgba(20, 24, 36, .78); color: #eef1fa; font-size: 13px; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .pill b { font-weight: 600; }
+  .pill.slow { background: rgba(165, 101, 10, .9); }
+  .overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; background: rgba(239, 230, 210, .92); color: #3a3220; padding: 16px; }
+  .bar { height: 6px; border-radius: 3px; background: rgba(128,140,170,.25); overflow: hidden; width: min(320px, 70vw); }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--accent); }
+
+  .log { font-size: 14px; display: grid; gap: 3px; max-height: 210px; overflow: auto; }
+  .log div { display: grid; grid-template-columns: 54px 1fr; gap: 8px; }
+  .log time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+  .log .brain { color: var(--accent); font-weight: 600; }
+
+  #brainCv { width: 100%; aspect-ratio: 16 / 9; display: block; background: #070a12; border-radius: 10px; }
+  .meters { display: grid; gap: 7px; }
+  .meter { display: grid; grid-template-columns: 1fr 52px; gap: 2px 8px; font-size: 13.5px; align-items: center; }
+  .meter .lbl { display: flex; justify-content: space-between; gap: 6px; }
+  .meter .lbl small { color: var(--muted); }
+  .meter .val { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 12.5px; }
+  .meter .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
+  .meter .track span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .12s linear; }
+  .meter.sense .track span { background: var(--warn); }
+  .meter.motor .track span { background: var(--good); }
+  .meter.off { opacity: .55; }
+  .meter.off .lbl::after { content: "stumm"; color: var(--bad); font-weight: 600; font-size: 12px; }
+  .sect { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin-top: 4px; }
+
+  .exp { display: grid; gap: 8px; }
+  .expbtn { text-align: left; display: grid; gap: 2px; font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+  .expbtn:hover { border-color: var(--accent); }
+  .expbtn b { font-weight: 600; }
+  .expbtn span { font-size: 13px; color: var(--muted); }
+  .ko { display: grid; gap: 6px; }
+  .ko label { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
+  .ko input { margin-top: 4px; accent-color: var(--bad); }
+  .ko small { color: var(--muted); display: block; font-size: 12.5px; }
+  .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=search] { font: 15px var(--font-body); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; width: 100%; min-width: 0; }
+  .chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
+  .chk input { margin-top: 4px; accent-color: var(--accent); }
+  .chk small { display: block; color: var(--muted); font-size: 12.5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--bad-soft); color: var(--fg); border-radius: 8px; padding: 3px 4px 3px 9px; font-size: 13.5px; }
+  .chip button { all: unset; cursor: pointer; padding: 0 5px; font-size: 16px; color: var(--muted); }
+  .hits { display: grid; gap: 2px; max-height: 180px; overflow: auto; }
+  .hit { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 7px; font-size: 14px; }
+  .hit:hover { background: var(--surface-2); }
+  .hit small { color: var(--muted); }
+  .mini { font: 600 12px var(--font-body); border-radius: 7px; border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--line)); background: var(--surface); color: var(--bad); padding: 3px 8px; cursor: pointer; }
+  .note { font-size: 13px; color: var(--muted); }
+  .flow { font-size: 13.5px; display: grid; gap: 6px; }
+  .flow div { display: grid; grid-template-columns: 74px 1fr; gap: 8px; }
+  .flow b { font-weight: 600; }
+  .tagb { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; vertical-align: 1px; }
+  .tagb.brain { background: var(--accent-soft); color: var(--accent); }
+  .tagb.body { background: var(--warn-soft); color: var(--warn); }
+  footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 95ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Fliegenwelt</h1>
+    <p class="lead">Eine Fruchtfliege mit Körper, gesteuert vom echten Gehirn aus dem FlyWire-Konnektom. Leg Zucker, Obst, Blumen oder einen Bitterköder hin, erschreck sie mit der Hand und schau, was ihr Gehirn daraus macht. Dann schalte einzelne Neuronen ab und vergleiche.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card" aria-label="Welt">
+        <div class="row spread">
+          <div class="tools" role="group" aria-label="Werkzeug" id="tools"></div>
+          <div class="row">
+            <button class="btn" id="pauseBtn">Pause</button>
+            <select id="speedSel" class="btn" aria-label="Tempo"><option value="1">1× Tempo</option><option value="2">2× Tempo</option><option value="4">4× Tempo</option></select>
+          </div>
+        </div>
+        <div class="world" id="world">
+          <canvas id="worldCv"></canvas>
+          <div class="hud" id="hud"></div>
+          <div class="overlay" id="overlay"><div id="ovText">Lade das Fliegenhirn …</div><div class="bar"><span id="ovBar"></span></div></div>
+        </div>
+        <div class="row spread">
+          <div class="row">
+            <button class="btn" data-scene="picknick">Szene: Picknick</button>
+            <button class="btn" data-scene="wiese">Szene: Blumenwiese</button>
+            <button class="btn" data-scene="leer">Leer</button>
+          </div>
+          <div class="row"><label class="chk" style="font-size:14px"><input type="checkbox" id="follow" checked> Nah dran (Kamera folgt)</label><label class="chk" style="font-size:14px"><input type="checkbox" id="showOdor"> Duftwolken zeigen</label></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row spread"><h2>Tagebuch der Fliege</h2><button class="btn" id="clearLog">leeren</button></div>
+        <div class="log" id="log"></div>
+      </section>
+
+      <section class="card">
+        <h2>Wer steuert was?</h2>
+        <div class="flow">
+          <div><b>Schmecken</b><span><span class="tagb brain">Gehirn</span> Steht die Fliege auf Futter, feuern die 23 Zucker-Geschmacksneuronen (stärker, je hungriger sie ist), bei Bitterem die Bitter-Neuronen. Das echte Netz entscheidet, ob der Rüssel-Motorneuron MN9 feuert. Nur dann fährt der Rüssel aus und sie frisst.</span></div>
+          <div><b>Gefahr sehen</b><span><span class="tagb brain">Gehirn</span> Eine nahende Hand wächst im Auge. Die Looming-Detektoren LC4 des jeweiligen Auges feuern. Feuert die Riesenfaser DNp01, springt die Fliege ab. Die Flucht-Neuronen DNp02/04/11 drehen sie von der Seite weg, auf der sie die Gefahr sieht.</span></div>
+          <div><b>Laufen</b><span><span class="tagb body">Körper</span> Ohne Reiz läuft die Fliege umher (einfacher Laufgenerator). Tritt sie auf Futter, hält sie kurz an und kostet. Steht der Rüssel draußen, bleibt sie stehen.</span></div>
+          <div><b>Riechen</b><span><span class="tagb body">Körper</span> Die „Nase“ ist ein vereinfachter Reflex: Wird der Duft stärker, läuft sie geradeaus; wird er schwächer, dreht sie öfter. Mit dem Schalter unten gehen die Düfte stattdessen ins echte Gehirn (Experiment).</span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card">
+        <div class="row spread"><h2>Gehirn live</h2><span class="muted" style="font-size:13px" id="brainStat"></span></div>
+        <canvas id="brainCv"></canvas>
+        <div class="meters" id="meters"></div>
+      </section>
+
+      <section class="card">
+        <h2>Experimente</h2>
+        <div class="exp" id="exps"></div>
+      </section>
+
+      <section class="card">
+        <h2>Fliege einstellen</h2>
+        <label class="field">Hunger: <span id="hungerVal" style="color:var(--fg)"></span>
+          <input type="range" id="hunger" min="0" max="100" value="60">
+        </label>
+        <div class="sect">Mutanten: Neuronen stummschalten</div>
+        <div class="ko" id="ko"></div>
+        <input type="search" id="koSearch" placeholder="Weitere suchen: Zelltyp oder Beschreibung" autocomplete="off">
+        <div class="hits" id="koHits"></div>
+        <div class="chips" id="koChips"></div>
+        <div class="sect">Sinne</div>
+        <label class="chk"><input type="checkbox" id="nose" checked><span>Nasen-Reflex (Körper)<small>Folgt Duft durch einfache Regel. Aus: Futter nur durch Zufall finden.</small></span></label>
+        <label class="chk"><input type="checkbox" id="smellBrain"><span>Düfte ins echte Gehirn schicken<small>Experiment: Die Duftzellen ORN DM1/DM4/VA2 werden gereizt. Achtung, im Modell gerät das Gehirn dabei in Dauererregung und die Welt läuft in Zeitlupe.</small></span></label>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <p>Gehirn: <a href="https://flywire.ai" target="_blank" rel="noopener">FlyWire</a>-Konnektom, Snapshot 783 (Dorkenwald et al. 2024; Schlegel et al. 2024), CC BY-NC 4.0. Neuronenmodell nach Shiu et al. 2024 (Nature). Körper, Welt und die Zuordnung von Neuronen zu Bewegungen sind vereinfacht und von uns gebaut.</p>
+    <p><a href="welt.html">← Fliegenwelt 3D</a> · <a href="./">Fliegenhirn-Labor</a> · <a href="../">Testseite</a></p>
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const fmt1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+const fmt0 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// =====================================================================
+// Gehirn laden
+// =====================================================================
+const D = {};
+async function fetchBytes(url, onProgress) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + ": HTTP " + r.status);
+  const reader = r.body.getReader(); const parts = []; let got = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; onProgress(got); }
+  let bytes = new Uint8Array(got), o = 0; for (const p of parts) { bytes.set(p, o); o += p.length; }
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+  return bytes;
+}
+async function loadBrain() {
+  const files = ["data/meta.json.gz", "data/pos.bin.gz", "data/conn.bin.gz"], total = 11.7e6, got = [0, 0, 0];
+  const prog = (k) => (g) => { got[k] = g; const s = got[0] + got[1] + got[2]; $("#ovBar").style.width = Math.min(100, s / total * 100) + "%"; $("#ovText").textContent = "Lade das Fliegenhirn … " + fmt1.format(s / 1e6) + " MB"; };
+  const [mB, pB, cB] = await Promise.all(files.map((f, k) => fetchBytes(f, prog(k))));
+  const meta = JSON.parse(new TextDecoder().decode(mB)); const N = meta.count;
+  Object.assign(D, { meta, N, dict: meta.dict, label: meta.label, ids: meta.ids });
+  for (const k of Object.keys(meta.col)) D[k] = Uint32Array.from(meta.col[k]);
+  const buf = cB.buffer.slice(cB.byteOffset, cB.byteOffset + cB.byteLength);
+  D.offsets = new Uint32Array(buf, 0, N + 1); const E = D.offsets[N];
+  D.post = new Uint32Array(buf, (N + 1) * 4, E); D.syn = new Uint16Array(buf, (N + 1) * 4 + E * 4, E);
+  D.ntCode = Uint8Array.from(D.nt, (k) => { const n = D.dict.nt[k]; return n === "ACH" ? 0 : (n === "GABA" || n === "GLUT") ? 1 : n ? 2 : 3; });
+  const pos = new Uint16Array(pB.buffer.slice(pB.byteOffset, pB.byteOffset + pB.byteLength));
+  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < N; i++) for (let a = 0; a < 3; a++) { const v = pos[i * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
+  const c = mn.map((m, a) => (m + mx[a]) / 2), s = Math.max(mx[0] - mn[0], mx[1] - mn[1]) / 2;
+  D.bx = new Float32Array(N); D.by = new Float32Array(N);
+  for (let i = 0; i < N; i++) { D.bx[i] = (pos[i * 3] - c[0]) / s; D.by[i] = (pos[i * 3 + 1] - c[1]) / s; }
+}
+const typeName = (i) => D.dict.type[D.type[i]];
+const sideName = (i) => D.dict.side[D.side[i]];
+function byType(types, side) { const want = new Set(types.map((t) => D.dict.type.indexOf(t))); const o = []; for (let i = 0; i < D.N; i++) if (want.has(D.type[i]) && (!side || sideName(i) === side)) o.push(i); return o; }
+function byLabel(re) { const o = []; for (let i = 0; i < D.N; i++) if (re.test(D.label[i])) o.push(i); return o; }
+
+// Neuronengruppen, die Sinne und Körper mit dem Gehirn verbinden
+const G = {};
+function defineGroups() {
+  G.sugar = byLabel(/Sugar Gustatory Receptor Neuron/);
+  G.bitter = byLabel(/Bitter Gustatory Receptor Neuron|labellar bitter gustatory/i);
+  G.lc4L = byType(["LC4"], "left"); G.lc4R = byType(["LC4"], "right");
+  G.ornL = byType(["ORN_DM1", "ORN_DM4", "ORN_VA2"], "left"); G.ornR = byType(["ORN_DM1", "ORN_DM4", "ORN_VA2"], "right");
+  G.mn9 = byLabel(/\bMN9\b/);
+  G.roundup = byLabel(/\bRoundup\b/);
+  G.gf = byType(["DNp01"]);
+  G.escL = byType(["DNp02", "DNp04", "DNp11"], "left"); G.escR = byType(["DNp02", "DNp04", "DNp11"], "right");
+  G.readIdx = new Map(); // Neuron -> Liste von Gruppen
+  for (const k of ["sugar", "bitter", "lc4L", "lc4R", "ornL", "ornR", "mn9", "roundup", "gf", "escL", "escR"]) for (const i of G[k]) { if (!G.readIdx.has(i)) G.readIdx.set(i, []); G.readIdx.get(i).push(k); }
+}
+
+// =====================================================================
+// Welt
+// =====================================================================
+const ARENA = { w: 80, h: 50 }; // Millimeter
+const KINDS = {
+  zucker: { name: "Zucker", sugar: 1, bitter: 0, odor: 0.35, r: 1.6, amount: 1 },
+  obst:   { name: "Banane", sugar: 1, bitter: 0, odor: 1.0, r: 3.2, amount: 1 },
+  blume:  { name: "Blume", sugar: 0.8, bitter: 0, odor: 0.8, r: 1.4, petal: 5.2, amount: 1 },
+  bitter: { name: "Bitterköder", sugar: 1, bitter: 1, odor: 0.7, r: 1.8, amount: 1 },
+};
+let items = [];
+const fly = { x: 40, y: 25, th: 0, v: 0, turn: 0, mode: "walk", alt: 0, flyT: 0, fvx: 0, fvy: 0, hunger: 0.6, prob: 0, legPhase: 0, pause: 0, cPrev: 0, eaten: 0, onItem: null };
+let threat = null; // {x,y,z,vx,vy,vz,life}
+let worldMs = 0;
+
+function scene(name) {
+  items = [];
+  const add = (k, x, y) => items.push({ kind: k, x, y, amount: 1, id: Math.random() });
+  if (name === "picknick") { add("obst", 16, 14); add("zucker", 62, 36); add("bitter", 60, 13); add("zucker", 22, 38); }
+  if (name === "wiese") { add("blume", 15, 13); add("blume", 38, 37); add("blume", 64, 15); add("blume", 66, 40); add("blume", 30, 15); }
+  Object.assign(fly, { x: 40, y: 25, th: Math.random() * 6.28, mode: "walk", alt: 0, v: 0, prob: 0 });
+  threat = null; odorDirty = true;
+  log(`Neue Szene: ${{ picknick: "Picknick", wiese: "Blumenwiese", leer: "leere Arena" }[name]}.`);
+}
+function odorAt(x, y) {
+  let c = 0;
+  for (const it of items) {
+    if (it.amount <= 0) continue;
+    const k = KINDS[it.kind], dx = x - it.x, dy = y - it.y, s = 9 + 4 * k.odor;
+    c += k.odor * Math.min(1, it.amount * 1.5) * Math.exp(-(dx * dx + dy * dy) / (2 * s * s));
+  }
+  return Math.min(1.5, c);
+}
+function itemUnder(x, y) {
+  for (const it of items) { if (it.amount <= 0) continue; const k = KINDS[it.kind]; if (Math.hypot(x - it.x, y - it.y) < k.r + 0.3) return it; }
+  return null;
+}
+
+// =====================================================================
+// Sinne -> Gehirn-Eingänge
+// =====================================================================
+const sense = { sugar: 0, bitter: 0, loomL: 0, loomR: 0, odorL: 0, odorR: 0 };
+function computeSenses() {
+  const hx = fly.x + Math.cos(fly.th) * 1.0, hy = fly.y + Math.sin(fly.th) * 1.0;
+  const it = fly.mode === "walk" ? itemUnder(hx, hy) : null;
+  fly.onItem = it;
+  const k = it && KINDS[it.kind];
+  sense.sugar = k ? (10 + 90 * fly.hunger) * k.sugar : 0;   // Hz pro Zucker-Neuron
+  sense.bitter = k ? 90 * k.bitter : 0;
+  // Bedrohung: Winkelgröße und deren Wachstum im linken/rechten Auge
+  sense.loomL = sense.loomR = 0;
+  if (threat && fly.mode === "walk") {
+    const dx = threat.x - fly.x, dy = threat.y - fly.y, dist = Math.hypot(dx, dy, threat.z);
+    const ang = 2 * Math.atan(threat.r / dist);
+    const dAng = threat.prevAng == null ? 0 : (ang - threat.prevAng) / 0.02;
+    threat.prevAng = ang;
+    const lat = Math.hypot(dx, dy) || 1;
+    const side = (dx * Math.sin(fly.th) - dy * Math.cos(fly.th)) / lat; // +1 links, -1 rechts
+    const drive = Math.max(0, Math.min(140, dAng * 55));
+    sense.loomL = drive * Math.max(0, Math.min(1, 0.5 + side * 1.2));
+    sense.loomR = drive * Math.max(0, Math.min(1, 0.5 - side * 1.2));
+  }
+  // Duft an linker und rechter Antenne
+  const ax = Math.cos(fly.th) * 1.2, ay = Math.sin(fly.th) * 1.2, px = Math.sin(fly.th) * 0.5, py = -Math.cos(fly.th) * 0.5;
+  sense.odorL = odorAt(fly.x + ax + px, fly.y + ay + py); sense.odorR = odorAt(fly.x + ax - px, fly.y + ay - py);
+}
+function brainInput() {
+  const idx = [], rates = [];
+  const put = (grp, hz) => { if (hz > 0.5 && !silencedGroup(grp)) for (const i of G[grp]) { idx.push(i); rates.push(hz); } };
+  put("sugar", sense.sugar); put("bitter", sense.bitter);
+  put("lc4L", sense.loomL); put("lc4R", sense.loomR);
+  if ($("#smellBrain").checked) { put("ornL", sense.odorL * 25); put("ornR", sense.odorR * 25); }
+  return { idx, rates };
+}
+
+// =====================================================================
+// Gehirn-Ausgänge (geglättete Raten je Gruppe) -> Körper
+// =====================================================================
+const rate = {}; const spikesChunk = {};
+for (const k of ["sugar", "bitter", "lc4L", "lc4R", "ornL", "ornR", "mn9", "roundup", "gf", "escL", "escR"]) { rate[k] = 0; spikesChunk[k] = 0; }
+let totalRate = 0, activeNeurons = 0;
+function readSpikes(spikes, ms) {
+  for (const k in spikesChunk) spikesChunk[k] = 0;
+  for (let n = 0; n < spikes.length; n++) { const g = G.readIdx.get(spikes[n]); if (g) for (const k of g) spikesChunk[k]++; }
+  const a = 1 - Math.exp(-ms / 120);
+  for (const k in rate) { const hz = spikesChunk[k] / Math.max(1, G[k].length) / (ms / 1000); rate[k] += (hz - rate[k]) * a; }
+  totalRate += (spikes.length / (ms / 1000) - totalRate) * a;
+}
+
+function stepBody(ms) {
+  const dt = ms / 1000;
+  fly.hunger = Math.min(1, fly.hunger + dt * 0.012);
+  // Rüssel: folgt MN9
+  const probTarget = Math.max(0, Math.min(1, (rate.mn9 - 8) / 40));
+  fly.prob += (probTarget - fly.prob) * Math.min(1, dt * 12);
+  // Fressen
+  if (fly.onItem && fly.prob > 0.5 && KINDS[fly.onItem.kind].sugar > 0) {
+    const it = fly.onItem;
+    it.amount = Math.max(0, it.amount - dt * 0.03);
+    fly.hunger = Math.max(0, fly.hunger - dt * 0.09);
+    fly.eaten += dt;
+    if (it.amount <= 0) { log(`${KINDS[it.kind].name} ist aufgefressen.`); odorDirty = true; }
+  }
+  // Flucht: Riesenfaser feuert -> Absprung
+  if (fly.mode === "walk" && spikesChunk.gf > 0) {
+    const away = threat ? Math.atan2(fly.y - threat.y, fly.x - threat.x) : fly.th + Math.PI;
+    const a = away + (Math.random() - 0.5) * 1.2;
+    fly.mode = "flight"; fly.flyT = 0; fly.fvx = Math.cos(a) * 70; fly.fvy = Math.sin(a) * 70; fly.th = a;
+    fly.escapes = (fly.escapes || 0) + 1;
+    log(`<span class="brain">Riesenfaser DNp01 feuert</span> → Absprung und Wegfliegen!`);
+  }
+  if (fly.mode === "flight") {
+    fly.flyT += dt;
+    const T = 0.9;
+    fly.alt = Math.sin(Math.min(1, fly.flyT / T) * Math.PI) * 1;
+    fly.x += fly.fvx * dt; fly.y += fly.fvy * dt;
+    if (fly.x < 3 || fly.x > ARENA.w - 3) { fly.fvx *= -1; fly.x = Math.max(3, Math.min(ARENA.w - 3, fly.x)); fly.th = Math.atan2(fly.fvy, fly.fvx); }
+    if (fly.y < 3 || fly.y > ARENA.h - 3) { fly.fvy *= -1; fly.y = Math.max(3, Math.min(ARENA.h - 3, fly.y)); fly.th = Math.atan2(fly.fvy, fly.fvx); }
+    if (fly.flyT > T) { fly.mode = "walk"; fly.alt = 0; fly.v = 0; log("Gelandet."); }
+    return;
+  }
+  // Laufen (Körper): einfacher Laufgenerator mit Pausen
+  const feeding = fly.prob > 0.3;
+  // Körper: bei neuem Futterkontakt kurz anhalten und kosten
+  const itId = fly.onItem ? fly.onItem.id : null;
+  if (itId && itId !== fly.lastItem) fly.probe = 1.6;
+  fly.lastItem = itId;
+  if (fly.probe > 0) fly.probe -= dt;
+  if (fly.pause > 0) fly.pause -= dt; else if (Math.random() < dt * 0.06) fly.pause = 0.6 + Math.random() * 1.5;
+  let vTarget = feeding || fly.pause > 0 || (fly.probe > 0 && itId) ? 0 : 7 + 5 * fly.hunger;
+  // Flucht-Neuronen: von der Seite wegdrehen, auf der die Gefahr ist, und losrennen
+  const escDiff = rate.escL - rate.escR, escSum = rate.escL + rate.escR;
+  if (escSum > 20) { vTarget = 16; fly.pause = 0; }
+  // Drehen: Zufall + Nase + Flucht + Wände
+  let turnNoise = 1.4;
+  const c = (sense.odorL + sense.odorR) / 2;
+  if ($("#nose").checked && c > 0.02 && !feeding) {
+    const dc = c - fly.cPrev;
+    turnNoise = dc > 0 ? 0.5 : 2.8;                 // Klinokinese
+    fly.turn -= (sense.odorL - sense.odorR) / (c + 0.05) * 6 * fly.hunger * dt * 10; // Tropotaxis: zur stärker riechenden Seite
+    vTarget *= 1 + 0.5 * fly.hunger;
+  }
+  fly.cPrev = c;
+  fly.turn += (Math.random() - 0.5) * turnNoise * Math.sqrt(dt) * 12 - fly.turn * dt * 3;
+  fly.turn += Math.max(-8, Math.min(8, escDiff * 0.04));
+  const m = 4, wx = fly.x < m ? 1 : fly.x > ARENA.w - m ? -1 : 0, wy = fly.y < m ? 1 : fly.y > ARENA.h - m ? -1 : 0;
+  if (wx || wy) { const want = Math.atan2(wy, wx); let d = want - fly.th; d = Math.atan2(Math.sin(d), Math.cos(d)); fly.turn += d * dt * 25; }
+  fly.turn = Math.max(-9, Math.min(9, fly.turn));
+  if (!feeding) fly.th += fly.turn * dt * (fly.v > 0.5 ? 1 : 0.3);
+  fly.v += (vTarget - fly.v) * Math.min(1, dt * 6);
+  fly.x = Math.max(1, Math.min(ARENA.w - 1, fly.x + Math.cos(fly.th) * fly.v * dt));
+  fly.y = Math.max(1, Math.min(ARENA.h - 1, fly.y + Math.sin(fly.th) * fly.v * dt));
+  fly.legPhase += fly.v * dt * 4.2;
+}
+function stepThreat(ms) {
+  if (!threat) return;
+  const dt = ms / 1000;
+  threat.life += dt;
+  if (threat.z > 2.5) {
+    const dx = threat.tx - threat.x, dy = threat.ty - threat.y, dz = 2 - threat.z, d = Math.hypot(dx, dy, dz);
+    const sp = 45; const k = Math.min(1, sp * dt / d);
+    threat.x += dx * k; threat.y += dy * k; threat.z += dz * k;
+  } else if (!threat.landed) { threat.landed = true; threat.hold = 0; }
+  if (threat.landed) { threat.hold += dt; if (threat.hold > 0.5) threat.r *= 0.9; }
+  if (threat.life > 3) { threat = null; }
+}
+
+// Ereignisse fürs Tagebuch erkennen
+const ev = { prob: false, loom: false, eatingName: null, sated: false, bitter: false };
+function detectEvents() {
+  const p = fly.prob > 0.5;
+  if (p && !ev.prob) log(`<span class="brain">MN9 feuert ${fmt0.format(rate.mn9)} Hz</span> → Rüssel raus${fly.onItem ? `, sie frisst an: ${KINDS[fly.onItem.kind].name}` : ""}.`);
+  if (!p && ev.prob) log(fly.hunger < 0.2 ? "Rüssel wieder drin – sie ist satt." : "Rüssel wieder drin.");
+  ev.prob = p;
+  const onFood = fly.onItem ? fly.onItem.id : null;
+  if (onFood && onFood !== ev.eatingName) {
+    const k = KINDS[fly.onItem.kind];
+    log(`Steht auf ${k.name}: <span class="brain">Zucker-Neuronen ${fmt0.format(sense.sugar)} Hz${k.bitter ? `, Bitter-Neuronen ${fmt0.format(sense.bitter)} Hz` : ""}</span>${silencedGroup("sugar") ? " (aber stummgeschaltet!)" : ""}.`);
+    setTimeout(() => { if (fly.onItem && fly.onItem.id === onFood && fly.prob < 0.3) log(`Kein Rüssel: MN9 nur ${fmt0.format(rate.mn9)} Hz.${KINDS[fly.onItem.kind].bitter ? " Das Bittere hemmt den Fressbefehl." : fly.hunger < 0.25 ? " Sie ist satt." : ""}`); }, 1100);
+  }
+  ev.eatingName = onFood;
+  const loom = rate.lc4L + rate.lc4R > 15;
+  if (loom && !ev.loom) log(`<span class="brain">LC4 ${rate.lc4L > rate.lc4R ? "links" : "rechts"} feuert</span> – etwas kommt von ${rate.lc4L > rate.lc4R ? "links" : "rechts"} auf sie zu.`);
+  ev.loom = loom;
+  const escOn = rate.escL + rate.escR > 20;
+  if (escOn && !ev.esc && fly.mode === "walk") log(`<span class="brain">Flucht-Neuronen ${rate.escL > rate.escR ? "links" : "rechts"} feuern</span> → sie dreht nach ${rate.escL > rate.escR ? "rechts" : "links"} weg und rennt.`);
+  ev.esc = escOn;
+}
+
+// =====================================================================
+// Simulation antreiben
+// =====================================================================
+let worker = null, busy = false, running = true, wallRef = 0, speed = 1, brainReady = false;
+const CHUNK = 20; // ms Hirnzeit pro Schritt
+let rtWin = [], rtFactor = 1, cpuLast = 0;
+let silenceDirty = true, resetPending = false;
+function resetBrain() {
+  resetPending = true;
+  for (const k in rate) rate[k] = 0;
+  fly.prob = 0; fly.probe = 0; fly.lastItem = null; ev.prob = false; ev.loom = false; ev.eatingName = null;
+}
+function startWorker() {
+  worker = new Worker("sim-worker.js");
+  worker.postMessage({ cmd: "init", offsets: D.offsets.slice().buffer, post: D.post.slice().buffer, syn: D.syn.slice().buffer, ntCode: D.ntCode.slice().buffer });
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === "ready") worker.postMessage({ cmd: "live-start", params: { dt: 0.2, seed: 7 } });
+    else if (m.type === "live-ready") { brainReady = true; wallRef = performance.now(); pump(); }
+    else if (m.type === "live-spikes") onSpikes(m);
+  };
+}
+function pump() {
+  if (!brainReady || busy || !running) return;
+  const due = (performance.now() - wallRef) * speed;
+  if (worldMs > due) { setTimeout(pump, Math.max(4, (worldMs - due) / speed)); return; }
+  if (due - worldMs > 250) wallRef = performance.now() - worldMs / speed; // Gehirn ist langsamer als Echtzeit
+  computeSenses();
+  const msg = { cmd: "live-step", ms: CHUNK, input: brainInput() };
+  if (silenceDirty) { msg.silence = silencedList(); silenceDirty = false; }
+  if (resetPending) { msg.reset = true; resetPending = false; }
+  busy = true; worker.postMessage(msg);
+}
+function onSpikes(m) {
+  busy = false;
+  readSpikes(m.spikes, m.ms);
+  activeNeurons = m.awake; cpuLast = m.cpu;
+  for (let s = 0; s < 4; s++) { stepThreat(m.ms / 4); stepBody(m.ms / 4); }
+  worldMs += m.ms;
+  detectEvents();
+  addGlow(m.spikes);
+  const now = performance.now(); rtWin.push([now, m.ms]); while (rtWin.length && now - rtWin[0][0] > 1000) rtWin.shift();
+  const span = rtWin.length > 1 ? now - rtWin[0][0] : 1000; rtFactor = rtWin.reduce((a, b) => a + b[1], 0) / Math.max(200, span);
+  pump();
+}
+$("#pauseBtn").addEventListener("click", () => {
+  running = !running; $("#pauseBtn").textContent = running ? "Pause" : "Weiter";
+  if (running) { wallRef = performance.now() - worldMs / speed; pump(); }
+});
+$("#speedSel").addEventListener("change", (e) => { speed = +e.target.value; wallRef = performance.now() - worldMs / speed; });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && running) { wallRef = performance.now() - worldMs / speed; pump(); } });
+
+// =====================================================================
+// Mutanten (Stummschalten)
+// =====================================================================
+const KO = [
+  { key: "sugar", name: "Zucker-Geschmacksneuronen", desc: "schmeckt keinen Zucker mehr" },
+  { key: "bitter", name: "Bitter-Geschmacksneuronen", desc: "schmeckt nichts Bitteres mehr" },
+  { key: "roundup", name: "„Roundup“ (Zwischenneuron)", desc: "Schaltstelle im Fress-Schaltkreis" },
+  { key: "mn9", name: "MN9 (Rüssel-Motorneuron)", desc: "kann den Rüssel nicht ausfahren" },
+  { key: "lc4", name: "LC4 (Looming-Detektoren)", desc: "sieht nahende Gefahr nicht" },
+  { key: "gf", name: "Riesenfaser DNp01", desc: "kann nicht per Notsprung abheben" },
+];
+const koOn = new Set(); const customKo = []; // {name, idx}
+function silencedGroup(grp) { if (grp === "lc4L" || grp === "lc4R") return koOn.has("lc4"); return koOn.has(grp); }
+function silencedList() {
+  const s = [];
+  for (const k of koOn) { if (k === "lc4") s.push(...G.lc4L, ...G.lc4R); else s.push(...G[k]); }
+  for (const c of customKo) s.push(...c.idx);
+  return s;
+}
+function renderKo() {
+  $("#ko").innerHTML = KO.map((k) => `<label><input type="checkbox" data-ko="${k.key}" ${koOn.has(k.key) ? "checked" : ""}><span>${esc(k.name)} <small>${esc(k.desc)} · ${k.key === "lc4" ? G.lc4L.length + G.lc4R.length : G[k.key].length} Neuronen</small></span></label>`).join("");
+  $("#koChips").innerHTML = customKo.map((c, n) => `<span class="chip">${esc(c.name)} · ${c.idx.length}<button data-kodel="${n}" aria-label="entfernen">×</button></span>`).join("");
+  renderMeters();
+}
+$("#ko").addEventListener("change", (e) => {
+  const k = e.target.dataset.ko; if (!k) return;
+  if (e.target.checked) koOn.add(k); else koOn.delete(k);
+  silenceDirty = true; renderMeters();
+  const ko = KO.find((x) => x.key === k);
+  log(e.target.checked ? `🧬 Mutante: ${ko.name} stummgeschaltet.` : `${ko.name} wieder aktiv.`);
+});
+let koHits = [];
+$("#koSearch").addEventListener("input", () => {
+  const q = $("#koSearch").value.trim().toLowerCase();
+  if (q.length < 2) { $("#koHits").innerHTML = ""; return; }
+  const types = []; D.dict.type.forEach((t, k) => { if (t && t.toLowerCase().includes(q)) types.push(k); });
+  types.sort((a, b) => D.dict.type[a].length - D.dict.type[b].length);
+  koHits = types.slice(0, 12).map((k) => { const idx = []; for (let i = 0; i < D.N; i++) if (D.type[i] === k) idx.push(i); return { name: D.dict.type[k], idx }; });
+  const lab = []; for (let i = 0; i < D.N; i++) if (D.label[i].toLowerCase().includes(q)) lab.push(i);
+  if (lab.length) koHits.push({ name: "„" + q + "“ in Beschreibung", idx: lab });
+  $("#koHits").innerHTML = koHits.map((h, n) => `<div class="hit"><span>${esc(h.name)} <small>${h.idx.length} Neuronen</small></span><button class="mini" data-kohit="${n}">stumm</button></div>`).join("") || `<div class="note">Nichts gefunden.</div>`;
+});
+$("#koHits").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-kohit]"); if (!b) return;
+  const h = koHits[+b.dataset.kohit]; customKo.push(h); silenceDirty = true;
+  log(`🧬 Mutante: ${esc(h.name)} (${h.idx.length} Neuronen) stummgeschaltet.`);
+  $("#koSearch").value = ""; $("#koHits").innerHTML = ""; renderKo();
+});
+$("#koChips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-kodel]"); if (!b) return;
+  const [c] = customKo.splice(+b.dataset.kodel, 1); silenceDirty = true; log(`${esc(c.name)} wieder aktiv.`); renderKo();
+});
+$("#hunger").addEventListener("input", (e) => { fly.hunger = +e.target.value / 100; });
+$("#smellBrain").addEventListener("change", (e) => log(e.target.checked ? "Experiment: Düfte gehen jetzt ins echte Gehirn (Duftzellen DM1, DM4, VA2)." : "Düfte gehen wieder nur an den Nasen-Reflex."));
+
+// =====================================================================
+// Messwerte
+// =====================================================================
+const METERS = [
+  ["Sinne"],
+  ["sugar", "Zucker-Geschmack", "sense", 120], ["bitter", "Bitter-Geschmack", "sense", 120],
+  ["lc4L", "Gefahr-Auge links (LC4)", "sense", 120], ["lc4R", "Gefahr-Auge rechts (LC4)", "sense", 120],
+  ["ornL", "Duftzellen links", "sense", 60], ["ornR", "Duftzellen rechts", "sense", 60],
+  ["Gehirn → Körper"],
+  ["roundup", "Roundup (Fress-Schaltstelle)", "", 120], ["mn9", "MN9 → Rüssel", "motor", 120],
+  ["gf", "Riesenfaser → Absprung", "motor", 120], ["escL", "Flucht-Neuronen links", "motor", 250], ["escR", "Flucht-Neuronen rechts", "motor", 250],
+];
+function renderMeters() {
+  $("#meters").innerHTML = METERS.map((m) => m.length === 1 ? `<div class="sect">${m[0]}</div>` :
+    `<div class="meter ${m[2]} ${silencedGroup(m[0]) ? "off" : ""}" data-m="${m[0]}"><div class="lbl"><span>${m[1]}</span></div><div class="val">0</div><div class="track"><span></span></div></div>`).join("");
+  meterEls = [...document.querySelectorAll("[data-m]")].map((el) => [el.dataset.m, el.querySelector(".val"), el.querySelector(".track span"), METERS.find((m) => m[0] === el.dataset.m)[3]]);
+}
+let meterEls = [];
+function updateMeters() {
+  for (const [k, val, bar, max] of meterEls) { val.textContent = fmt0.format(rate[k]) + " Hz"; bar.style.width = Math.min(100, rate[k] / max * 100) + "%"; }
+  $("#brainStat").textContent = `${fmt0.format(totalRate)} Spikes/s`;
+}
+
+// =====================================================================
+// Gehirn live zeichnen
+// =====================================================================
+const bcv = $("#brainCv"), bctx = bcv.getContext("2d");
+let bImg = null, bBase = null, bW = 0, bH = 0, bProj = null;
+const glow = { val: null, list: [], flag: null };
+function resizeBrain() {
+  const r = bcv.getBoundingClientRect(), pr = Math.min(2, devicePixelRatio || 1);
+  bW = Math.max(1, Math.round(r.width * pr)); bH = Math.max(1, Math.round(r.height * pr)); bcv.width = bW; bcv.height = bH;
+  if (!D.N) return;
+  bImg = bctx.createImageData(bW, bH); bBase = new Uint8ClampedArray(bW * bH * 4);
+  bProj = new Int32Array(D.N);
+  const sc = Math.min(bW, bH * 1.9) * 0.48;
+  for (let o = 0; o < bBase.length; o += 4) { bBase[o] = 7; bBase[o + 1] = 10; bBase[o + 2] = 18; bBase[o + 3] = 255; }
+  for (let i = 0; i < D.N; i++) {
+    const x = (bW / 2 + D.bx[i] * sc) | 0, y = (bH / 2 + D.by[i] * sc) | 0;
+    if (x < 0 || y < 0 || x >= bW || y >= bH) { bProj[i] = -1; continue; }
+    const o = (y * bW + x) * 4; bProj[i] = o;
+    bBase[o] += 9; bBase[o + 1] += 12; bBase[o + 2] += 22;
+  }
+  // Sinnes- und Motor-Neuronen markieren
+  for (const [grp, c] of [["sugar", [240, 170, 60]], ["bitter", [240, 170, 60]], ["lc4L", [240, 170, 60]], ["lc4R", [240, 170, 60]], ["mn9", [60, 220, 200]], ["gf", [60, 220, 200]], ["escL", [60, 220, 200]], ["escR", [60, 220, 200]]])
+    for (const i of G[grp]) { const o = bProj[i]; if (o >= 0) { bBase[o] = c[0] * .5; bBase[o + 1] = c[1] * .5; bBase[o + 2] = c[2] * .5; } }
+}
+function addGlow(spikes) {
+  if (!glow.val) { glow.val = new Float32Array(D.N); glow.flag = new Uint8Array(D.N); }
+  const cap = Math.min(spikes.length, 40000);
+  for (let n = 0; n < cap; n++) { const i = spikes[n]; glow.val[i] = Math.min(2, glow.val[i] + 0.7); if (!glow.flag[i]) { glow.flag[i] = 1; glow.list.push(i); } }
+}
+function drawBrainLive() {
+  if (!bImg) return;
+  const d = bImg.data; d.set(bBase);
+  const keep = [];
+  for (const i of glow.list) {
+    const g = glow.val[i] *= 0.86;
+    if (g < 0.04) { glow.flag[i] = 0; glow.val[i] = 0; continue; }
+    keep.push(i);
+    const o = bProj[i]; if (o < 0) continue;
+    const a = Math.min(1, g);
+    for (const off of [0, 4, bW * 4, bW * 4 + 4]) { const q = o + off; d[q] += 255 * a; d[q + 1] += 200 * a; d[q + 2] += 90 * a; }
+  }
+  glow.list = keep;
+  bctx.putImageData(bImg, 0, 0);
+}
+
+// =====================================================================
+// Welt zeichnen
+// =====================================================================
+const cv = $("#worldCv"), ctx = cv.getContext("2d");
+let W = 0, H = 0, pr = 1, S = 10, OX = 0, OY = 0;
+const cam = { s: 10, x: 0, y: 0, cx: 40, cy: 25, z: 1 };
+let odorDirty = true, odorCanvas = null, odorTimer = 0;
+function resizeWorld() {
+  const r = cv.getBoundingClientRect(); pr = Math.min(2, devicePixelRatio || 1);
+  W = Math.round(r.width * pr); H = Math.round(r.height * pr); cv.width = W; cv.height = H;
+  const pad = 2;
+  S = Math.min(W / (ARENA.w + pad * 2), H / (ARENA.h + pad * 2)); OX = (W - ARENA.w * S) / 2; OY = (H - ARENA.h * S) / 2;
+  odorDirty = true;
+}
+function toWorld(ev) { const r = cv.getBoundingClientRect(); return [((ev.clientX - r.left) * pr - cam.x) / cam.s, ((ev.clientY - r.top) * pr - cam.y) / cam.s]; }
+function buildOdor() {
+  const step = 1.5, nx = Math.ceil(ARENA.w / step), ny = Math.ceil(ARENA.h / step);
+  odorCanvas = document.createElement("canvas"); odorCanvas.width = nx; odorCanvas.height = ny;
+  const oc = odorCanvas.getContext("2d"), im = oc.createImageData(nx, ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const c = odorAt((i + .5) * step, (j + .5) * step), o = (j * nx + i) * 4;
+    im.data[o] = 150; im.data[o + 1] = 90; im.data[o + 2] = 210; im.data[o + 3] = Math.min(95, c * 110);
+  }
+  oc.putImageData(im, 0, 0); odorDirty = false;
+}
+function drawItem(it, t) {
+  const k = KINDS[it.kind], a = Math.max(0.15, it.amount);
+  ctx.save(); ctx.translate(it.x, it.y);
+  if (it.kind === "blume") {
+    const n = 6, R = k.petal * (0.85 + 0.15 * a);
+    for (let p = 0; p < n; p++) {
+      ctx.save(); ctx.rotate(p / n * Math.PI * 2 + it.x);
+      ctx.fillStyle = p % 2 ? "#f2a5c4" : "#ee8fb5"; ctx.beginPath(); ctx.ellipse(R * 0.55, 0, R * 0.5, R * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(160,50,100,.35)"; ctx.lineWidth = 0.12; ctx.stroke(); ctx.restore();
+    }
+    ctx.fillStyle = it.amount > 0 ? "#f6c33b" : "#c9a34d"; ctx.beginPath(); ctx.arc(0, 0, k.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(190,120,20,.6)";
+    for (let p = 0; p < 9; p++) { const an = p * 2.4, rr = (p % 3 + 1) * 0.35; ctx.beginPath(); ctx.arc(Math.cos(an) * rr, Math.sin(an) * rr, 0.13, 0, Math.PI * 2); ctx.fill(); }
+    if (it.amount > 0) { ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.arc(-0.4, -0.4, 0.35 * a, 0, Math.PI * 2); ctx.fill(); }
+  } else if (it.kind === "zucker") {
+    const s = k.r * 1.5 * (0.5 + 0.5 * a);
+    ctx.fillStyle = "rgba(0,0,0,.12)"; roundRect(-s / 2 + 0.25, -s / 2 + 0.3, s, s, 0.35); ctx.fill();
+    ctx.fillStyle = "#fbfaf6"; roundRect(-s / 2, -s / 2, s, s, 0.35); ctx.fill();
+    ctx.strokeStyle = "#d9d3c4"; ctx.lineWidth = 0.12; ctx.stroke();
+    ctx.fillStyle = "#e9e4d8"; for (let p = 0; p < 6; p++) ctx.fillRect(-s / 2 + ((p * 7) % 10) / 10 * s, -s / 2 + ((p * 3) % 10) / 10 * s, 0.25, 0.25);
+  } else if (it.kind === "obst") {
+    const R = k.r * (0.6 + 0.4 * a);
+    ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(0.3, 0.35, R, R, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#f3d45a"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fbf1c4"; ctx.beginPath(); ctx.arc(0, 0, R * 0.84, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#8b6a2b"; for (let p = 0; p < 3; p++) { const an = p / 3 * Math.PI * 2; ctx.beginPath(); ctx.ellipse(Math.cos(an) * R * 0.22, Math.sin(an) * R * 0.22, 0.28, 0.14, an, 0, Math.PI * 2); ctx.fill(); }
+  } else if (it.kind === "bitter") {
+    const R = k.r * (0.55 + 0.45 * a);
+    ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.arc(0.25, 0.3, R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#9fd0a0"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#4f8f55"; ctx.lineWidth = 0.15; ctx.stroke();
+    ctx.fillStyle = "#2f6b37"; ctx.font = `700 ${R * 1.2}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("!", 0, 0.1);
+  }
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawFly(t) {
+  const f = fly, flying = f.mode === "flight", sc = 1 + f.alt * 0.35;
+  // Schatten
+  ctx.save(); ctx.translate(f.x + f.alt * 1.4, f.y + f.alt * 1.8); ctx.rotate(f.th);
+  ctx.fillStyle = `rgba(40,30,10,${flying ? 0.18 : 0.22})`; ctx.beginPath(); ctx.ellipse(-0.3, 0, 1.6, 0.75, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.th); ctx.scale(sc, sc);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // Beine (Dreifuß-Gang)
+  if (!flying) {
+    ctx.strokeStyle = "#3b2a1a"; ctx.lineWidth = 0.09;
+    const legs = [[0.32, 1, 0], [0.02, 1, 1], [-0.28, 1, 0], [0.32, -1, 1], [0.02, -1, 0], [-0.28, -1, 1]];
+    for (const [lx, side, grp] of legs) {
+      const ph = f.legPhase + (grp ? Math.PI : 0), sw = Math.sin(ph) * 0.28 * Math.min(1, f.v / 4);
+      const base = lx > 0.2 ? 0.55 : lx < -0.2 ? -0.75 : -0.05;
+      const kx = lx + 0.15 * Math.sign(base) + sw * 0.5, ky = side * 0.62;
+      const fx = lx + base + sw, fy = side * 1.05;
+      ctx.beginPath(); ctx.moveTo(lx, side * 0.22); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    }
+  }
+  // Flügel
+  const wingAng = flying ? 1.1 + Math.sin(t * 0.09) * 0.5 : 0.17;
+  for (const side of [1, -1]) {
+    ctx.save(); ctx.translate(-0.05, side * 0.12); ctx.rotate(Math.PI + side * wingAng);
+    ctx.fillStyle = flying ? "rgba(225,232,245,.35)" : "rgba(220,228,240,.55)"; ctx.strokeStyle = "rgba(120,130,150,.6)"; ctx.lineWidth = 0.04;
+    ctx.beginPath(); ctx.ellipse(0.95, 0, 1.0, 0.36, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0.1, 0); ctx.lineTo(1.8, 0.05); ctx.moveTo(0.3, 0.05); ctx.lineTo(1.6, 0.25); ctx.stroke();
+    ctx.restore();
+  }
+  // Hinterleib
+  ctx.fillStyle = "#c79a55"; ctx.beginPath(); ctx.ellipse(-0.8, 0, 0.78, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#4a3320";
+  for (let b = 0; b < 4; b++) { ctx.beginPath(); ctx.ellipse(-0.55 - b * 0.28, 0, 0.07, 0.46 - b * 0.07, 0, 0, Math.PI * 2); ctx.fill(); }
+  // Brust
+  ctx.fillStyle = "#a8783e"; ctx.beginPath(); ctx.ellipse(0.05, 0, 0.48, 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(60,40,20,.5)"; ctx.lineWidth = 0.04; ctx.beginPath(); ctx.moveTo(-0.25, 0); ctx.lineTo(0.4, 0); ctx.stroke();
+  // Rüssel
+  if (f.prob > 0.02) {
+    const L = 0.65 * f.prob;
+    ctx.strokeStyle = "#b36a5e"; ctx.lineWidth = 0.13; ctx.beginPath(); ctx.moveTo(0.75, 0); ctx.lineTo(0.75 + L, 0); ctx.stroke();
+    ctx.fillStyle = "#c98276"; ctx.beginPath(); ctx.ellipse(0.78 + L, 0, 0.12, 0.17, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // Kopf und Augen
+  ctx.fillStyle = "#b98a4c"; ctx.beginPath(); ctx.ellipse(0.6, 0, 0.24, 0.38, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#c2241c";
+  for (const s of [1, -1]) { ctx.beginPath(); ctx.ellipse(0.6, s * 0.28, 0.2, 0.17, s * 0.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = "rgba(255,255,255,.35)"; for (const s of [1, -1]) { ctx.beginPath(); ctx.arc(0.66, s * 0.24, 0.05, 0, Math.PI * 2); ctx.fill(); }
+  // Fühler
+  ctx.strokeStyle = "#4a3320"; ctx.lineWidth = 0.06;
+  for (const s of [1, -1]) { ctx.beginPath(); ctx.moveTo(0.78, s * 0.07); ctx.lineTo(0.92, s * 0.13); ctx.stroke(); }
+  ctx.restore();
+}
+function drawThreat() {
+  if (!threat) return;
+  const rr = threat.r * (1 + 14 / Math.max(1, threat.z));
+  const a = Math.min(0.55, 0.12 + 6 / Math.max(2, threat.z));
+  const g = ctx.createRadialGradient(threat.x, threat.y, 0, threat.x, threat.y, rr);
+  g.addColorStop(0, `rgba(25,20,15,${a})`); g.addColorStop(0.7, `rgba(25,20,15,${a * 0.7})`); g.addColorStop(1, "rgba(25,20,15,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(threat.x, threat.y, rr, 0, Math.PI * 2); ctx.fill();
+}
+let frame = 0;
+function render() {
+  frame++;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#e9dfc8"; ctx.fillRect(0, 0, W, H);
+  // Kamera: ganze Arena oder nah an der Fliege
+  const zt = $("#follow").checked ? 3.2 : 1;
+  cam.z += (zt - cam.z) * 0.08;
+  const fx = fly.x, fy = fly.y;
+  cam.cx += ((zt > 1 ? fx : ARENA.w / 2) - cam.cx) * 0.08; cam.cy += ((zt > 1 ? fy : ARENA.h / 2) - cam.cy) * 0.08;
+  cam.s = S * cam.z;
+  const half = [W / 2 / cam.s, H / 2 / cam.s];
+  const cx = cam.z > 1.02 ? Math.max(Math.min(cam.cx, ARENA.w + 2 - half[0]), half[0] - 2) : ARENA.w / 2;
+  const cy = cam.z > 1.02 ? Math.max(Math.min(cam.cy, ARENA.h + 2 - half[1]), half[1] - 2) : ARENA.h / 2;
+  cam.x = W / 2 - cx * cam.s; cam.y = H / 2 - cy * cam.s;
+  ctx.setTransform(cam.s, 0, 0, cam.s, cam.x, cam.y);
+  // Boden
+  ctx.fillStyle = "#f4ecd9"; roundRect(0, 0, ARENA.w, ARENA.h, 2); ctx.fill();
+  ctx.strokeStyle = "rgba(150,120,70,.12)"; ctx.lineWidth = 0.06;
+  ctx.beginPath(); for (let x = 5; x < ARENA.w; x += 5) { ctx.moveTo(x, 0); ctx.lineTo(x, ARENA.h); } for (let y = 5; y < ARENA.h; y += 5) { ctx.moveTo(0, y); ctx.lineTo(ARENA.w, y); } ctx.stroke();
+  ctx.strokeStyle = "rgba(120,90,40,.35)"; ctx.lineWidth = 0.25; roundRect(0, 0, ARENA.w, ARENA.h, 2); ctx.stroke();
+  if ($("#showOdor").checked) {
+    if (odorDirty || frame - odorTimer > 60) { buildOdor(); odorTimer = frame; }
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(odorCanvas, 0, 0, ARENA.w, ARENA.h);
+  }
+  for (const it of items) drawItem(it, frame);
+  if (fly.mode !== "flight") drawFly(frame);
+  drawThreat();
+  if (fly.mode === "flight") drawFly(frame);
+  // Maßstab
+  ctx.fillStyle = "rgba(90,70,40,.7)"; ctx.fillRect(ARENA.w - 12, ARENA.h - 2.2, 10, 0.3);
+  ctx.font = `1.5px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.fillText("1 cm", ARENA.w - 7, ARENA.h - 2.8);
+  drawBrainLive(); updateMeters(); updateHud();
+  requestAnimationFrame(render);
+}
+function updateHud() {
+  const s = Math.floor(worldMs / 1000);
+  const slow = rtFactor < 0.85 * speed && running;
+  $("#hud").innerHTML = `<span class="pill">Zeit <b>${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</b></span>
+    <span class="pill">Hunger <b>${fmt0.format(fly.hunger * 100)} %</b></span>
+    <span class="pill">gefressen <b>${fmt1.format(fly.eaten)} s</b></span>
+    ${slow ? `<span class="pill slow">Gehirn rechnet: Zeitlupe ×${fmt1.format(rtFactor)}</span>` : ""}
+    ${!running ? `<span class="pill">Pause</span>` : ""}`;
+  if (frame % 15 === 0) $("#hungerVal").textContent = fmt0.format(fly.hunger * 100) + " %";
+  if (frame % 15 === 0 && document.activeElement !== $("#hunger")) $("#hunger").value = Math.round(fly.hunger * 100);
+}
+
+// =====================================================================
+// Werkzeuge
+// =====================================================================
+const ICONS = {
+  zucker: `<svg viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2" fill="#fbfaf6" stroke="#b9b09c"/></svg>`,
+  obst: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#f3d45a"/><circle cx="10" cy="10" r="5.5" fill="#fbf1c4"/></svg>`,
+  blume: `<svg viewBox="0 0 20 20">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="10" cy="5" rx="2.6" ry="4" fill="#ee8fb5" transform="rotate(${a} 10 10)"/>`).join("")}<circle cx="10" cy="10" r="2.6" fill="#f6c33b"/></svg>`,
+  bitter: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#9fd0a0" stroke="#4f8f55"/><text x="10" y="14" font-size="10" text-anchor="middle" fill="#2f6b37" font-weight="700">!</text></svg>`,
+  hand: `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="#2b241b" opacity=".75"/><circle cx="10" cy="10" r="4" fill="#2b241b"/></svg>`,
+  fliege: `<svg viewBox="0 0 20 20"><ellipse cx="8" cy="10" rx="5" ry="3" fill="#c79a55"/><ellipse cx="14" cy="10" rx="2" ry="3" fill="#c2241c"/></svg>`,
+  weg: `<svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+};
+const TOOLS = [["zucker", "Zucker"], ["obst", "Banane"], ["blume", "Blume"], ["bitter", "Bitterköder"], ["hand", "Hand (Gefahr)"], ["fliege", "Fliege setzen"], ["weg", "Entfernen"]];
+let tool = "hand";
+function renderTools() {
+  $("#tools").innerHTML = TOOLS.map(([k, n]) => `<button class="tool" data-tool="${k}" aria-pressed="${k === tool}">${ICONS[k]}${n}</button>`).join("");
+}
+$("#tools").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (!b) return; tool = b.dataset.tool; renderTools(); });
+cv.addEventListener("pointerdown", (e) => {
+  if (!brainReady) return;
+  const [x, y] = toWorld(e);
+  if (x < 0 || y < 0 || x > ARENA.w || y > ARENA.h) return;
+  if (KINDS[tool]) { items.push({ kind: tool, x, y, amount: 1, id: Math.random() }); odorDirty = true; log(`${KINDS[tool].name} hingelegt.`); }
+  else if (tool === "hand") launchThreat(x, y);
+  else if (tool === "fliege") { Object.assign(fly, { x, y, mode: "walk", alt: 0, v: 0 }); }
+  else if (tool === "weg") {
+    let best = -1, bd = 6; items.forEach((it, n) => { const d = Math.hypot(it.x - x, it.y - y); if (d < bd) { bd = d; best = n; } });
+    if (best >= 0) { log(`${KINDS[items[best].kind].name} entfernt.`); items.splice(best, 1); odorDirty = true; }
+  }
+});
+function launchThreat(x, y) {
+  // Die Hand startet hoch über dem angetippten Punkt und stößt auf die Fliege herab
+  threat = { x, y, z: 40, r: 7, tx: fly.x, ty: fly.y, life: 0, prevAng: null };
+  log(`✋ Eine Hand stößt ${sideOf(x, y)} herab.`);
+}
+function sideOf(x, y) {
+  const dx = x - fly.x, dy = y - fly.y, s = dx * Math.sin(fly.th) - dy * Math.cos(fly.th), f = dx * Math.cos(fly.th) + dy * Math.sin(fly.th);
+  if (Math.abs(s) < Math.abs(f) * 0.35) return f > 0 ? "von vorne" : "von hinten";
+  return s > 0 ? "von links" : "von rechts";
+}
+document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => scene(b.dataset.scene)));
+
+// =====================================================================
+// Tagebuch
+// =====================================================================
+function log(html) {
+  const s = Math.floor(worldMs / 1000);
+  const el = document.createElement("div");
+  el.innerHTML = `<time>${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</time><span>${html}</span>`;
+  $("#log").prepend(el);
+  while ($("#log").children.length > 60) $("#log").lastChild.remove();
+}
+$("#clearLog").addEventListener("click", () => { $("#log").innerHTML = ""; });
+
+// =====================================================================
+// Fertige Experimente
+// =====================================================================
+function resetKo() { koOn.clear(); customKo.length = 0; silenceDirty = true; renderKo(); }
+function placeFlyNear(it, dist) { const a = Math.random() * 6.28; Object.assign(fly, { x: it.x + Math.cos(a) * dist, y: it.y + Math.sin(a) * dist, th: a + Math.PI, mode: "walk", alt: 0, v: 0, prob: 0 }); }
+const EXPS = [
+  { t: "Hungrige Fliege findet Zucker", d: "Hunger 80 %. Riecht sie die Banane, läuft hin und frisst?",
+    go: () => { resetKo(); items = [{ kind: "obst", x: 55, y: 25, amount: 1, id: 1 }]; odorDirty = true; Object.assign(fly, { x: 20, y: 25, th: 0, mode: "walk", hunger: 0.8, prob: 0 }); } },
+  { t: "Mutante ohne „Roundup“", d: "Gleiche Banane, aber das Zwischenneuron Roundup ist stumm. Sie steht drauf … und frisst nicht.",
+    go: () => { resetKo(); koOn.add("roundup"); silenceDirty = true; renderKo(); items = [{ kind: "obst", x: 40, y: 25, amount: 1, id: 2 }]; odorDirty = true; placeFlyNear(items[0], 1.5); fly.hunger = 0.8; } },
+  { t: "Bitterköder", d: "Zucker mit Bitterstoff. Die Bitter-Neuronen hemmen den Fressbefehl.",
+    go: () => { resetKo(); items = [{ kind: "bitter", x: 40, y: 25, amount: 1, id: 3 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.8; } },
+  { t: "… ohne Bitter-Geschmack", d: "Dieselbe Falle, aber die Bitter-Neuronen sind stumm. Jetzt frisst sie den Köder.",
+    go: () => { resetKo(); koOn.add("bitter"); silenceDirty = true; renderKo(); items = [{ kind: "bitter", x: 40, y: 25, amount: 1, id: 4 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.8; } },
+  { t: "Erschrecken von links", d: "Eine Hand kommt von links. LC4 → Riesenfaser → Absprung.",
+    go: () => { resetKo(); items = []; odorDirty = true; Object.assign(fly, { x: 40, y: 25, th: 0, mode: "walk", v: 0, pause: 1.5 }); setTimeout(() => launchThreat(40, 8), 300); } },
+  { t: "… ohne Riesenfaser", d: "Riesenfaser stumm: Sie sieht die Hand und dreht weg, kann aber nicht abspringen.",
+    go: () => { resetKo(); koOn.add("gf"); silenceDirty = true; renderKo(); items = []; odorDirty = true; Object.assign(fly, { x: 40, y: 25, th: 0, mode: "walk", v: 0, pause: 1.5 }); setTimeout(() => launchThreat(40, 8), 300); } },
+  { t: "Satte Fliege", d: "Hunger 5 %. Die Zucker-Neuronen feuern schwach – reicht das für MN9?",
+    go: () => { resetKo(); items = [{ kind: "zucker", x: 40, y: 25, amount: 1, id: 5 }]; odorDirty = true; placeFlyNear(items[0], 0.8); fly.hunger = 0.05; } },
+];
+function renderExps() {
+  $("#exps").innerHTML = EXPS.map((x, n) => `<button class="expbtn" data-exp="${n}"><b>${esc(x.t)}</b><span>${esc(x.d)}</span></button>`).join("");
+  $("#exps").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-exp]"); if (!b || !brainReady) return;
+    threat = null; resetBrain(); const x = EXPS[+b.dataset.exp]; x.go();
+    if (!running) $("#pauseBtn").click();
+    log(`<b>Experiment: ${esc(x.t)}</b>`);
+    $("#world").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+}
+
+// =====================================================================
+// Start
+// =====================================================================
+renderTools(); renderExps();
+new ResizeObserver(() => { resizeWorld(); resizeBrain(); }).observe(cv);
+loadBrain().then(() => {
+  defineGroups(); renderKo(); renderMeters(); resizeWorld(); resizeBrain();
+  $("#ovText").textContent = "Gehirn wird verdrahtet …";
+  scene("picknick");
+  log("Tippe ein Werkzeug an und dann in die Welt. Mit der Hand kannst du die Fliege erschrecken.");
+  startWorker();
+  const wait = setInterval(() => { if (brainReady) { $("#overlay").hidden = true; clearInterval(wait); } }, 100);
+  requestAnimationFrame(render);
+}).catch((err) => {
+  console.error(err);
+  $("#ovText").innerHTML = location.protocol === "file:" ? "Bitte über einen Webserver öffnen: <code>python3 -m http.server</code> im Repo-Ordner, dann <code>localhost:8000/fliege/welt.html</code>." : "Laden fehlgeschlagen: " + esc(err.message);
+});
+</script>
+</body>
+</html>

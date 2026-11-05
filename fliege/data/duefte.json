@@ -1,0 +1,312 @@
+{
+ "quelle": "DoOR 2.0 (Münch & Galizia 2016, Sci Rep 6:21841), CC BY-SA 4.0; Rezeptor→Glomerulus nach DoOR-Mappings, ergänzt nach Couto et al. 2005",
+ "duefte": {
+  "3-Octanol": {
+   "en": "3-octanol",
+   "riecht": "pilzig, erdig – klassischer Lern-Duft",
+   "pattern": {
+    "D": 0.741,
+    "DA4m": 0.133,
+    "DC1": 0.374,
+    "DC2": 0.579,
+    "DL1": 0.118,
+    "DL4": 0.115,
+    "DM1": 0.063,
+    "DM2": 0.337,
+    "DM3": 0.468,
+    "DM6": 0.319,
+    "VA3": 0.123,
+    "VA4": 0.369,
+    "VA6": 0.055,
+    "VC1": 0.153,
+    "VC3": 0.434,
+    "VM5d": 0.676,
+    "VM5v": 0.592,
+    "VM7d": 0.094,
+    "VM7v": 0.204
+   }
+  },
+  "4-Methylcyclohexanol": {
+   "en": "4-methylcyclohexanol",
+   "riecht": "minzig-holzig – klassischer Lern-Duft",
+   "pattern": {
+    "D": 0.635,
+    "DC2": 0.078,
+    "DC3": 0.078,
+    "DL1": 0.131,
+    "DL5": 0.06,
+    "DM2": 0.254,
+    "VA3": 0.876,
+    "VC2": 0.083,
+    "VM5d": 0.08,
+    "VM5v": 0.085,
+    "VM7d": 0.061
+   }
+  },
+  "Benzaldehyd": {
+   "en": "benzaldehyde",
+   "riecht": "Bittermandel",
+   "pattern": {
+    "D": 0.146,
+    "DA4l": 0.134,
+    "DC1": 0.053,
+    "DC3": 0.198,
+    "DL1": 0.222,
+    "DL4": 0.129,
+    "DL5": 0.551,
+    "DM2": 0.098,
+    "DM3": 0.061,
+    "DM6": 0.445,
+    "V": 0.083,
+    "VA3": 0.695,
+    "VA4": 0.095,
+    "VA5": 0.087,
+    "VC1": 0.264,
+    "VC3": 0.227,
+    "VM2": 0.137,
+    "VM3": 0.228,
+    "VM5d": 0.07,
+    "VM5v": 0.128,
+    "VM7d": 0.056
+   }
+  },
+  "Isoamylacetat": {
+   "en": "isopentyl acetate",
+   "riecht": "Banane",
+   "pattern": {
+    "DA3": 0.099,
+    "DA4l": 0.068,
+    "DA4m": 0.186,
+    "DC1": 0.238,
+    "DC2": 0.146,
+    "DL1": 0.419,
+    "DL4": 0.105,
+    "DM1": 0.183,
+    "DM2": 0.479,
+    "DM3": 0.415,
+    "DM4": 0.078,
+    "DM6": 0.336,
+    "VA3": 0.097,
+    "VA4": 0.313,
+    "VA6": 0.056,
+    "VC1": 0.264,
+    "VC4": 0.061,
+    "VM2": 0.401,
+    "VM3": 0.351,
+    "VM5d": 0.337,
+    "VM5v": 0.639,
+    "VM7d": 0.274,
+    "VM7v": 0.093
+   }
+  },
+  "Ethylacetat": {
+   "en": "ethyl acetate",
+   "riecht": "fruchtig, Nagellack",
+   "pattern": {
+    "DC2": 0.076,
+    "DC3": 0.23,
+    "DC4": 0.278,
+    "DL5": 0.055,
+    "DM1": 0.61,
+    "DM2": 0.181,
+    "DM3": 0.279,
+    "DM4": 0.581,
+    "DM5": 0.178,
+    "DM6": 0.059,
+    "VA2": 0.125,
+    "VA3": 0.078,
+    "VA4": 0.09,
+    "VC1": 0.565,
+    "VC4": 0.057,
+    "VM2": 0.477,
+    "VM3": 0.163,
+    "VM5d": 0.063,
+    "VM7d": 0.723,
+    "VM7v": 0.072
+   }
+  },
+  "Ethylbutyrat": {
+   "en": "ethyl butyrate",
+   "riecht": "Ananas",
+   "pattern": {
+    "DA4l": 0.091,
+    "DC1": 0.12,
+    "DC2": 0.109,
+    "DC3": 0.06,
+    "DL4": 0.073,
+    "DM1": 0.475,
+    "DM2": 0.402,
+    "DM3": 0.256,
+    "DM4": 0.096,
+    "DM5": 0.422,
+    "DM6": 0.306,
+    "VA2": 0.135,
+    "VA4": 0.063,
+    "VC3": 0.302,
+    "VC4": 0.408,
+    "VM2": 0.701,
+    "VM3": 0.32,
+    "VM5d": 0.209,
+    "VM5v": 0.255,
+    "VM7d": 0.739,
+    "VM7v": 0.314
+   }
+  },
+  "Linalool": {
+   "en": "linalool",
+   "riecht": "Blüte, Lavendel",
+   "pattern": {
+    "D": 0.716,
+    "DC1": 0.262,
+    "DC2": 0.164,
+    "DL5": 0.069,
+    "DM2": 0.081,
+    "DM3": 0.076,
+    "DM6": 0.158,
+    "VC3": 0.064,
+    "VM5d": 0.163,
+    "VM5v": 0.467
+   }
+  },
+  "Geraniol": {
+   "en": "geraniol",
+   "riecht": "Rose",
+   "pattern": {
+    "D": 0.596,
+    "DC2": 0.073,
+    "DL5": 0.053,
+    "DM6": 0.095,
+    "V": 0.097,
+    "VA3": 0.05,
+    "VA6": 0.075,
+    "VM5d": 0.077,
+    "VM5v": 0.278
+   }
+  },
+  "Ocimen": {
+   "en": "ocimene",
+   "riecht": "Blüte, grün",
+   "pattern": {
+    "DC1": 0.402
+   }
+  },
+  "Methylsalicylat": {
+   "en": "methyl salicylate",
+   "riecht": "Wintergrün, Blüte",
+   "pattern": {
+    "D": 0.545,
+    "DA4l": 0.071,
+    "DC2": 0.07,
+    "DL1": 0.753,
+    "DL5": 0.054,
+    "VC2": 0.468
+   }
+  },
+  "Essigsäure": {
+   "en": "acetic acid",
+   "riecht": "Essig",
+   "pattern": {
+    "D": 0.271,
+    "DC4": 1.0,
+    "DM2": 0.056,
+    "DP1l": 0.56,
+    "DP1m": 0.475,
+    "VA3": 0.135,
+    "VC5": 0.132,
+    "VL1": 0.056,
+    "VM5v": 0.057
+   }
+  },
+  "Ethanol": {
+   "en": "ethanol",
+   "riecht": "Gärung",
+   "pattern": {
+    "DL5": 0.105,
+    "DM2": 0.111,
+    "DM3": 0.093,
+    "DM5": 0.055,
+    "VC3": 0.09,
+    "VM3": 0.076
+   }
+  },
+  "1-Hexanol": {
+   "en": "1-hexanol",
+   "riecht": "frisch gemähtes Gras",
+   "pattern": {
+    "DA3": 0.198,
+    "DA4l": 0.451,
+    "DA4m": 0.101,
+    "DC1": 0.252,
+    "DC2": 0.52,
+    "DC3": 0.078,
+    "DL4": 0.205,
+    "DL5": 0.139,
+    "DM1": 0.175,
+    "DM2": 0.173,
+    "DM3": 0.121,
+    "DM5": 0.475,
+    "DM6": 0.28,
+    "VA3": 0.741,
+    "VC2": 0.118,
+    "VC3": 0.708,
+    "VC4": 0.175,
+    "VM2": 0.332,
+    "VM3": 0.271,
+    "VM5d": 0.592,
+    "VM5v": 0.443,
+    "VM7d": 0.396
+   }
+  },
+  "2-Heptanon": {
+   "en": "2-heptanone",
+   "riecht": "käsig, fruchtig",
+   "pattern": {
+    "D": 0.347,
+    "DA3": 0.141,
+    "DA4l": 0.142,
+    "DA4m": 0.128,
+    "DC1": 0.275,
+    "DC2": 0.263,
+    "DC3": 0.124,
+    "DL3": 0.104,
+    "DL4": 0.154,
+    "DM2": 0.262,
+    "DM3": 0.581,
+    "DM5": 0.11,
+    "DM6": 0.323,
+    "VA3": 0.547,
+    "VA4": 0.508,
+    "VC1": 0.3,
+    "VC3": 0.323,
+    "VC4": 0.066,
+    "VM2": 0.27,
+    "VM3": 0.28,
+    "VM5d": 0.648,
+    "VM5v": 0.623,
+    "VM7d": 0.459,
+    "VM7v": 0.144
+   }
+  },
+  "CO₂": {
+   "en": "carbon dioxide",
+   "riecht": "Stress-Geruch anderer Fliegen",
+   "pattern": {
+    "DC2": 0.09,
+    "DL5": 0.051,
+    "V": 0.859,
+    "VC4": 0.057,
+    "VM5d": 0.099,
+    "VM5v": 0.073,
+    "VM7d": 0.065
+   }
+  },
+  "Geosmin": {
+   "en": "geosmin",
+   "riecht": "Schimmel, verdorben",
+   "pattern": {
+    "DA2": 1.0
+   },
+   "quelle": "Stensmyr et al. 2012"
+  }
+ }
+}
