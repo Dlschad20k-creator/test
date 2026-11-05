@@ -270,6 +270,9 @@ SK.ai = (function () {
 
     // Sprachmodelle: Systemprompt + passendes Wissen aus den Trainingsdaten
     var hits = model.rag !== false ? SK.engine.search(index, question, { categories: model.strict === false ? null : cats, limit: 3 }).filter(function (h) { return h.score > 0.2; }) : [];
+    // Bei lebensbedrohlichen Lagen kommt die passende Profi-Antwort immer zuerst mit
+    var rule = SK.engine.safetyRule(question, index);
+    if (rule) hits = [{ ex: rule.ex, score: 1 }].concat(hits.filter(function (h) { return h.ex.id !== rule.id; })).slice(0, 3);
     var messages = [{ role: 'system', content: SK.prompts.system(model) }];
     if (hits.length) messages.push({ role: 'system', content: SK.prompts.context(hits) });
     history.slice(-10).forEach(function (h) { messages.push({ role: h.role, content: h.content }); });
@@ -288,7 +291,7 @@ SK.ai = (function () {
     } else {
       throw new Error('Unbekannter Anbieter: ' + model.provider);
     }
-    return { text: res.text, sources: sources, meta: { emergency: SK.engine.isEmergency(question), stats: res.stats } };
+    return { text: res.text, sources: sources, meta: { emergency: SK.engine.isEmergency(question) || !!(rule && rule.sos), stats: res.stats } };
   };
 
   return A;

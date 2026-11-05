@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Survival-KI Studio</title>
+<meta name="description" content="Eigene KI für Blackout, Survival und Apokalypse erstellen, trainieren und prüfen: im Browser, mit Ollama, kostenlos in Google Colab, auf dem eigenen PC oder mit OpenAI.">
+<meta name="theme-color" content="#e9ebe3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121510" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Big+Shoulders+Stencil+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>
+  // Farbschema vor dem ersten Zeichnen setzen (kein Aufblitzen)
+  try { var t = JSON.parse(localStorage.getItem('ski.state.v1') || '{}'); t = t.settings && t.settings.theme; if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" type="button" id="menu-open" aria-label="Menü öffnen" aria-controls="nav" aria-expanded="false"></button>
+    <a class="brand" href="#start" aria-label="Survival-KI Studio, Start">
+      <img class="brand-mark" src="icon.svg" alt="">
+      <span><span class="brand-name">Survival-KI</span><span class="brand-sub">Studio</span></span>
+    </a>
+    <span class="grow"></span>
+    <a class="icon-btn" href="#chat" aria-label="Zum Chat" id="top-chat"></a>
+  </header>
+
+  <nav class="sidebar" id="nav" aria-label="Hauptmenü">
+    <a class="brand" href="#start">
+      <img class="brand-mark" src="icon.svg" alt="">
+      <span><span class="brand-name">Survival-KI</span><span class="brand-sub">Studio</span></span>
+    </a>
+    <div class="nav" id="nav-links"></div>
+    <div class="side-foot" id="side-status"></div>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <section class="view" id="view-start" hidden></section>
+    <section class="view" id="view-modelle" hidden></section>
+    <section class="view" id="view-daten" hidden></section>
+    <section class="view" id="view-training" hidden></section>
+    <section class="view" id="view-chat" hidden></section>
+    <section class="view" id="view-pruefung" hidden></section>
+    <section class="view" id="view-einstellungen" hidden></section>
+    <section class="view" id="view-hilfe" hidden></section>
+  </main>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<noscript><p style="padding:24px">Das Survival-KI Studio braucht JavaScript.</p></noscript>
+
+<script src="js/data.js"></script>
+<script src="js/util.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/store.js"></script>
+<script src="js/providers.js"></script>
+<script src="js/export.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+<script src="js/views/start.js"></script>
+<script src="js/views/models.js"></script>
+<script src="js/views/data.js"></script>
+<script src="js/views/training.js"></script>
+<script src="js/views/chat.js"></script>
+<script src="js/views/eval.js"></script>
+<script src="js/views/settings.js"></script>
+<script src="js/views/help.js"></script>
+<script>SK.app.start();</script>
+</body>
+</html>

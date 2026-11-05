@@ -527,6 +527,24 @@ SK.engine = (function () {
     return out.join('\n');
   }
 
+  // Feste Antworten für lebensbedrohliche Lagen. Reihenfolge = Vorrang.
+  var SAFETY = [
+    { id: 'hilfe-03', sos: true, re: /(atmet|atmen|atmung|atem)\s+(nicht|kaum|nicht mehr)|(nicht|kaum|nicht mehr)\s+(atmet|atmen)|keine?\s+atmung|kein\s+atem|atemstillstand|herzstillstand|kein\s+puls|reanimier|wiederbeleb|herzdruckmassage/ },
+    { id: 'hilfe-01', sos: true, re: /blutet\s+(sehr\s+)?stark|starke[rn]?\s+blutung|viel\s+blut|blut\s+spritzt|spritzt\s+blut|verblutet/ },
+    { id: 'heizen-02', re: /(grill|holzkohle|gasgrill|heizpilz)\S*\s+.*(wohnung|drinnen|zimmer|haus|innen)|(wohnung|drinnen|zimmer|innen)\S*\s+.*(grill|holzkohle|heizpilz)/ },
+    { id: 'licht-02', re: /(generator|aggregat|stromerzeuger)\S*\s+.*(garage|keller|wohnung|drinnen|haus|zelt|innen)/ },
+  ];
+  E.safetyRule = function (text, index) {
+    var t = U.normalize(text);
+    for (var i = 0; i < SAFETY.length; i++) {
+      if (!SAFETY[i].re.test(t)) continue;
+      var doc = index && index.docs.filter(function (d) { return d.ex.id === SAFETY[i].id; })[0];
+      var ex = doc ? doc.ex : (SK.BUILTIN || []).filter(function (e) { return e.id === SAFETY[i].id; })[0];
+      if (ex) return { id: SAFETY[i].id, ex: ex, sos: !!SAFETY[i].sos };
+    }
+    return null;
+  };
+
   /*
    * model: Modell aus dem Speicher (modes, categories, style, strict, name)
    * ctx: {index, classifier, examples}
@@ -547,6 +565,16 @@ SK.engine = (function () {
     }
 
     var cats = E.modelCategories(model);
+    // Lebensbedrohliche Notfälle: feste Regeln statt unscharfer Suche (z. B. "atmet nicht" ≠ "atmet")
+    var rule = E.safetyRule(q, ctx.index);
+    if (rule) {
+      res.emergency = rule.sos || res.emergency; res.kind = 'answer'; res.rule = rule.id;
+      res.category = { id: rule.ex.c, p: null };
+      res.sources = [{ id: rule.ex.id, q: rule.ex.q, c: rule.ex.c, score: 1 }];
+      res.confidence = 1;
+      res.text = rule.ex.a.indexOf('112') >= 0 ? rule.ex.a : '**Bei Lebensgefahr sofort den Notruf 112 wählen.**\n\n' + rule.ex.a;
+      return res;
+    }
     var probs = null;
     if (ctx.classifier) {
       var pr = E.predict(ctx.classifier, q);
@@ -586,7 +614,6 @@ SK.engine = (function () {
       }
     }
     if (res.emergency && text.indexOf('112') < 0) text = '**Bei Lebensgefahr sofort den Notruf 112 wählen.**\n\n' + text;
-    else if (res.emergency) text = '**Notfall? Ruf sofort die 112 an.**\n\n' + text;
     else if (top.ex.c === 'erstehilfe' && text.indexOf('112') < 0) text += '\n\nBei Lebensgefahr immer zuerst die **112** anrufen.';
     res.text = text;
     return res;

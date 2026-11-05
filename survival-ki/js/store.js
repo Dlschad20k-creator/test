@@ -150,6 +150,11 @@ SK.store = (function () {
     datasetChanged();
   };
   S.resetDataset = function () { st.dataset = { added: [], edited: {}, removed: [] }; datasetChanged(); };
+  S.removedExamples = function () {
+    var removed = {};
+    st.dataset.removed.forEach(function (id) { removed[id] = 1; });
+    return (SK.BUILTIN || []).filter(function (e) { return removed[e.id]; }).map(function (e) { return Object.assign({}, e, { builtin: true, hidden: true }); });
+  };
   S.datasetInfo = function () {
     return { added: st.dataset.added.length, edited: Object.keys(st.dataset.edited).length, removed: st.dataset.removed.length };
   };

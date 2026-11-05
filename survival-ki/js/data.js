@@ -590,7 +590,7 @@ Ein Schock bedeutet, dass der Körper nicht mehr genug durchblutet wird. Das ist
 7. Atmung und Bewusstsein ständig überwachen.`);
 
   E('hilfe-03', 'erstehilfe', 'Wie funktioniert die Herz-Lungen-Wiederbelebung?',
-    ['Anleitung zur Wiederbelebung', 'Herzdruckmassage', 'Eine Person atmet nicht, was tun?', 'Reanimation'],
+    ['Anleitung zur Wiederbelebung', 'Herzdruckmassage', 'Eine Person atmet nicht, was tun?', 'Jemand ist bewusstlos und atmet nicht mehr', 'Reanimation'],
     `
 Wenn jemand nicht reagiert und nicht normal atmet:
 1. **Laut ansprechen und anfassen.** Keine Reaktion: um Hilfe rufen.

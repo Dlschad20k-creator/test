@@ -1,0 +1,9 @@
+# Survival-KI Studio – lokaler Trainer
+# Mit NVIDIA-Grafikkarte zuerst PyTorch mit CUDA installieren: https://pytorch.org/get-started/locally/
+torch
+transformers>=4.45
+peft>=0.13
+accelerate
+safetensors
+# Für 4-Bit-Training (QLoRA) auf NVIDIA-Grafikkarten:
+bitsandbytes; platform_system != "Darwin"
