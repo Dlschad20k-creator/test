@@ -106,6 +106,35 @@ python3 fliege/tools/build_duefte.py /tmp/DoOR.data/data
 
 Die einfache 2D-Version der Welt ohne Lernen liegt in `welt-2d.html`.
 
+## Fliegenkino (`kino.html`)
+
+Der Fliege ein Video zeigen (Datei oder eingebauter Testfilm; das Video bleibt im Browser). Sie
+schaut es Bild für Bild (25 Bilder/s) mit zwei Facettenaugen an, und ihr Gehirn reagiert:
+
+| Stufe | Wie |
+| --- | --- |
+| Augen und Sehlappen (`augen.js`) | **klassisches Modell**: je Auge ~225 Ommatidien (5°), Anpassung, AN/AUS-Kanäle, Bewegungsdetektoren nach Hassenstein & Reichardt (T4/T5), Ausdehnungs-, Annäherungs- und Kleinobjekt-Detektion mit Umfeld-Hemmung |
+| Projektionsneuronen (`kino-setup.js`) | LPLC2, LC4, LC10a, LC11, HS, VS im Konnektom bekommen diese Signale, je Neuron nach seiner Lage im Gesichtsfeld |
+| Gehirn | echtes FlyWire-Netz mit den Korrekturen aus `brain-setup.js` |
+| Urteil | absteigende Neuronen: DNa02 (zum Objekt drehen) und DNp09 (loslaufen) = gut; Riesenfaser DNp01 und Flucht-Neuronen DNp02/04/11 = Schreck |
+
+Warum die ersten Sehstufen ein Modell sind: Photorezeptoren und Lamina arbeiten im Tier mit
+abgestuften Spannungen und Histamin, nicht mit Spikes. Getestet: Treibt man die Photorezeptoren
+oder die Lamina im Spike-Modell an, kommt hinten fast nichts an. Ab den Projektionsneuronen
+stimmt die Verdrahtung mit der Literatur überein (LPLC2 → Riesenfaser, LC4 → DNp02/04/11,
+LC10a → DNa02 auf derselben Seite).
+
+Prüfen: `node fliege/tools/kino_test.js` – Ergebnis des letzten Laufs:
+
+| Testfilm | Reaktion |
+| --- | --- |
+| Standbild | nichts |
+| Etwas fliegt links heran | Schreck 7 Hz (Riesenfaser + Flucht), Bildfluss |
+| Kleine Fliege links / rechts | Hinwenden links 23,5 Hz / rechts 12 Hz |
+| Langsame kleine Fliege (11°/s) | Hinwenden links 27,5 Hz |
+| Landschaft zieht vorbei | Bildfluss 41 Hz, kaum Hinwenden |
+| Handyvideo mit Rauschen und Wackeln | nichts (keine Fehlalarme) |
+
 ## Das Modell (Labor-Seite)
 
 Leaky Integrate-and-Fire, Parameter wie in Shiu et al. 2024 (*Nature*,
