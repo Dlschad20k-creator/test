@@ -37,7 +37,7 @@ SK.engine = (function () {
   }
 
   function words(text) {
-    return U.normalize(text).split(' ').filter(function (w) { return w && w.length > 1 && !STOPSET[w]; });
+    return U.normalize(text).replace(/-/g, ' ').split(' ').filter(function (w) { return w && w.length > 1 && !STOPSET[w]; });
   }
   // Trennbare Verben: "Wie mache ich das Feuer an/aus?" – das Wort am Ende entscheidet
   var PARTICLES = { an: 'anzuend', aus: 'loesch' };
@@ -76,7 +76,7 @@ SK.engine = (function () {
   ].forEach(function (group) { group.forEach(function (w) { SYNWORDS[w] = group[0]; }); });
 
   E.tokens = function (text) {
-    var raw = U.normalize(text).split(' ').filter(Boolean), out = [];
+    var raw = U.normalize(text).replace(/-/g, ' ').split(' ').filter(Boolean), out = [];
     raw.forEach(function (w) {
       if (w.length < 2 || STOPSET[w]) return;
       var st = stem(SYNWORDS[w] || w);
@@ -173,7 +173,7 @@ SK.engine = (function () {
       if (allowed && !allowed[d.ex.c]) return;
       var sw = dot(qv, d.vec), st = dot(qtri, d.tri);
       var score = 0.58 * sw + 0.42 * st;
-      if (probs && probs[d.ex.c] !== undefined) score += (opts.boost === undefined ? 0.12 : opts.boost) * probs[d.ex.c];
+      if (probs && probs[d.ex.c] !== undefined) score += (opts.boost === undefined ? 0.05 : opts.boost) * probs[d.ex.c];
       res.push({ ex: d.ex, score: score, word: sw, tri: st });
     });
     res.sort(function (a, b) { return b.score - a.score; });
@@ -251,18 +251,22 @@ SK.engine = (function () {
       });
     });
     if (opts.offTopic !== false) {
-      var off = (SK.OFFTOPIC || []).slice();
+      // Handgeschriebene fremde Fragen zum Lernen, eine eigene Liste zum Prüfen
+      (SK.OFFTOPIC || []).forEach(function (t) { train.push({ t: t, y: OFF, k: 'q' }); });
+      (SK.OFFTOPIC_VAL || []).forEach(function (t) { val.push({ t: t, y: OFF, k: 'q' }); });
+      // Fragen aus Vorlagen nur zum Lernen
+      (SK.offTopicTemplates ? SK.offTopicTemplates() : []).forEach(function (t) { train.push({ t: t, y: OFF, k: 'q' }); });
+      // Strikte Modelle: Fragen aus anderen Fachgebieten gehören nicht zu diesem Modell
       if (opts.strict !== false) {
         examples.forEach(function (ex) {
           if (cats[ex.c]) return;
-          off.push(ex.q);
-          (ex.alt || []).slice(0, 2).forEach(function (a) { off.push(a); });
+          var list = [ex.q].concat((ex.alt || []).slice(0, 2));
+          list.forEach(function (t, i) {
+            if (i === 0 && rnd() < 0.3) val.push({ t: t, y: OFF, k: 'q' });
+            else train.push({ t: t, y: OFF, k: 'q' });
+          });
         });
       }
-      off.forEach(function (t) {
-        if (rnd() < 0.25) val.push({ t: t, y: OFF, k: 'q' });
-        else train.push({ t: t, y: OFF, k: 'q' });
-      });
     }
     if (opts.augment !== false) {
       var extra = [];
@@ -340,8 +344,8 @@ SK.engine = (function () {
     cfg = cfg || {}; hooks = hooks || {};
     var D = cfg.dim || 2048, H = cfg.hidden || 48, epochs = cfg.epochs || 30, lr = cfg.lr || 0.01;
     var patience = cfg.patience === undefined ? 8 : cfg.patience;
-    var batch = cfg.batch || 16, wd = cfg.weightDecay === undefined ? 1e-4 : cfg.weightDecay;
-    var drop = cfg.dropout === undefined ? 0.3 : cfg.dropout; // zufällig Merkmale weglassen = weniger Auswendiglernen
+    var batch = cfg.batch || 16, wd = cfg.weightDecay === undefined ? 3e-4 : cfg.weightDecay;
+    var drop = cfg.dropout === undefined ? 0.5 : cfg.dropout; // zufällig Merkmale weglassen = weniger Auswendiglernen
     var smooth = cfg.smoothing === undefined ? 0.05 : cfg.smoothing;
     var data = E.buildSamples(examples, categories, { seed: cfg.seed || 7, augment: cfg.augment, valShare: cfg.valShare, strict: cfg.strict });
     var classes = data.classes, K = classes.length, classIndex = {};
@@ -362,7 +366,7 @@ SK.engine = (function () {
     var t0 = Date.now();
     var best = { loss: Infinity, epoch: 0, W1: new Float32Array(D * H), b1: new Float32Array(H), W2: new Float32Array(H * K), b2: new Float32Array(K) };
 
-    if (hooks.onLog) hooks.onLog('Daten: ' + train.length + ' Trainingsbeispiele (mit Tippfehler-Varianten), ' + val.length + ' neue Formulierungen zum Prüfen, ' + K + ' Ausgänge (' + (K - 1) + ' Antworten + fremdes Thema).');
+    if (hooks.onLog) hooks.onLog('Daten: ' + train.length + ' Trainingsbeispiele (mit Tippfehler-Varianten), ' + val.length + ' neue Formulierungen zum Prüfen, ' + K + ' Ausgänge (' + (K - 1) + ' Themen + fremdes Thema).');
     if (hooks.onLog) hooks.onLog('Netz: ' + D + ' Eingänge → ' + H + ' Neuronen → ' + K + ' Ausgänge (' + U.fmtNum(D * H + H + H * K + K) + ' Parameter).');
 
     function adamUpdate(w, m, v, g, i, bc1, bc2) {
@@ -555,10 +559,15 @@ SK.engine = (function () {
     res.sources = hits.slice(0, 4).map(function (h) { return { id: h.ex.id, q: h.ex.q, c: h.ex.c, score: h.score }; });
     if (top) res.category = { id: top.ex.c, p: probs ? probs[top.ex.c] || 0 : null };
 
+    // Ablehnen nur, wenn das Netz ein fremdes Thema erkennt oder (ohne Netz) gar nichts passt.
+    // Hält das Netz die Frage für ein eigenes Thema, antwortet die KI lieber vorsichtig.
     var pOff = probs ? probs[OFF] || 0 : 0;
-    var weak = !top || top.score < 0.16;
-    var offByNet = probs && pOff > 0.55 && (!top || top.score < 0.4);
-    if ((offByNet || weak) && !res.emergency) {
+    var score0 = top ? top.score : 0;
+    var decline = probs
+      ? (pOff >= 0.45 && score0 < 0.35) || (pOff >= 0.3 && score0 < 0.16) || score0 < 0.06
+      : score0 < 0.14;
+    res.pOff = probs ? pOff : null;
+    if (decline && !res.emergency) {
       res.offTopic = true; res.kind = 'offtopic'; res.sources = [];
       res.text = 'Darauf bin ich nicht spezialisiert. Ich bin **' + name + '** und kenne mich mit ' + E.modeText(model) + ' aus.\n' +
         'Dazu kann ich dir zum Beispiel helfen:\n' + suggestions(model, 3).map(function (s) { return '- ' + s; }).join('\n');

@@ -1608,6 +1608,58 @@ SK.OFFTOPIC = [
   'Wie viel verdient ein Fußballprofi?',
 ];
 
+/* Fremde Fragen, die nur zum Prüfen dienen (das Netz sieht sie beim Training nie) */
+SK.OFFTOPIC_VAL = [
+  'Wer hat die meisten Tore in der Bundesliga geschossen?',
+  'Kannst du mir eine Gutenachtgeschichte über ein Einhorn erzählen?',
+  'Was ist die Hauptstadt von Schweden?',
+  'Welche Kryptowährung steigt als Nächstes?',
+  'Wie bekomme ich mehr Abonnenten auf YouTube?',
+  'Wie backe ich einen Apfelkuchen?',
+  'Was ist der Unterschied zwischen einem Verb und einem Nomen?',
+  'Welcher Schauspieler spielt in Harry Potter mit?',
+  'Wie viele Beine hat eine Spinne?',
+  'Schreib mir eine Geburtstagskarte für meinen Opa',
+  'Welches Parfüm riecht am besten?',
+  'Wie funktioniert ein Elektromotor?',
+  'Wie verbessere ich meine Handschrift?',
+  'Wann wurde Berlin gegründet?',
+  'Was ist das beste Handyspiel?',
+  'Wie lerne ich Tanzen?',
+];
+
+/*
+ * Zusätzliche fremde Fragen aus Vorlagen (nur für das Training, nicht für die Prüfung).
+ * Je mehr verschiedene fremde Fragen das Netz sieht, desto sicherer erkennt es sein Fachgebiet.
+ */
+SK.offTopicTemplates = function () {
+  var out = [];
+  function fill(tpl, list) { list.forEach(function (x) { out.push(tpl.replace('{}', x)); }); }
+  fill('Was ist die Hauptstadt von {}?', ['Italien', 'Japan', 'Kanada', 'Brasilien', 'Ägypten', 'Norwegen', 'Polen', 'Indien', 'Mexiko', 'Portugal']);
+  fill('Wer ist {}?', ['Taylor Swift', 'Albert Einstein', 'Elon Musk', 'Cristiano Ronaldo', 'Mozart', 'Barack Obama', 'Billie Eilish', 'Lionel Messi']);
+  fill('Wie werde ich besser in {}?', ['Minecraft', 'Schach', 'FIFA', 'Roblox', 'Mario Kart', 'League of Legends', 'Mathe', 'Englisch']);
+  fill('Wie viel kostet {}?', ['eine PlayStation 5', 'ein Tesla', 'ein Flug nach Mallorca', 'ein Gaming-Laptop', 'eine Nintendo Switch', 'ein neues Fahrrad', 'ein Konzertticket']);
+  fill('Erklär mir {}', ['die Photosynthese', 'den Zweiten Weltkrieg', 'die Bruchrechnung', 'die Französische Revolution', 'wie ein Computer funktioniert', 'die Inflation', 'wie ein Flugzeug fliegt', 'die Evolution', 'das Grundgesetz']);
+  fill('Schreib mir {}', ['ein Gedicht über meine Katze', 'eine Geschichte über einen Drachen', 'einen Songtext über den Sommer', 'eine Rede für die Hochzeit', 'eine E-Mail an meinen Chef', 'einen Liebesbrief', 'einen Aufsatz über Hunde']);
+  fill('Welcher {} ist der beste?', ['Film', 'Fußballverein', 'Rapper', 'Streamingdienst', 'Urlaubsort', 'Smartphone-Hersteller', 'Anime']);
+  fill('Wie werde ich {}?', ['YouTuber', 'Pilot', 'Fußballprofi', 'Programmierer', 'Influencer', 'Schauspieler', 'Millionär']);
+  fill('Gib mir ein Rezept für {}', ['Lasagne', 'Spaghetti Carbonara', 'Pfannkuchen', 'Sushi', 'Tiramisu', 'Burger', 'Schokoladenkekse', 'Döner']);
+  fill('Was bedeutet das Wort {}?', ['Melancholie', 'Nostalgie', 'Empathie', 'Prokrastination', 'Algorithmus']);
+  fill('Wie lange dauert ein Flug nach {}?', ['New York', 'Tokio', 'Thailand', 'Dubai']);
+  fill('Hilf mir bei {}', ['meinen Mathe-Hausaufgaben', 'meiner Bewerbung', 'meinem Referat über Delfine', 'meiner Steuererklärung', 'meinem Lebenslauf', 'einem Brief ans Finanzamt']);
+  fill('Wie programmiere ich {}?', ['ein Spiel in Python', 'eine App für das iPhone', 'einen Discord-Bot', 'eine Webseite mit JavaScript', 'einen Taschenrechner']);
+  fill('Was soll ich {}?', ['heute anziehen', 'meiner Mutter zum Geburtstag schenken', 'am Wochenende unternehmen', 'heute Abend kochen', 'auf Netflix schauen', 'studieren']);
+  fill('Wer hat {} gewonnen?', ['das letzte Champions-League-Finale', 'den Eurovision Song Contest', 'die letzte Formel-1-Saison', 'das Spiel gestern Abend', 'die Bundesliga', 'die Oscars', 'das Tennisturnier in Wimbledon']);
+  fill('Wann ist {}?', ['das nächste Spiel von Bayern München', 'der nächste Feiertag', 'das nächste Konzert von Coldplay', 'der nächste Black Friday']);
+  fill('Was hältst du von {}?', ['meinem neuen Haarschnitt', 'der neuen Marvel-Serie', 'Kryptowährungen', 'Elektroautos als Geldanlage']);
+  fill('{}', ['Wie spät ist es in Australien?', 'Wie heißt der längste Fluss der Welt?', 'Wie viele Einwohner hat Deutschland?', 'Wer hat das Telefon erfunden?',
+    'Was ist 17 mal 23?', 'Wie schreibt man einen guten Liebesbrief?', 'Welche Sprache spricht man in Brasilien?', 'Was ist ein schwarzes Loch?',
+    'Wie bekomme ich eine bessere Note in Deutsch?', 'Was ist die beste Diät zum Abnehmen?', 'Wie mache ich ein TikTok-Video?', 'Wann kommt die nächste GTA?',
+    'Wer gewinnt die nächste Bundestagswahl?', 'Wie funktioniert ein Kredit?', 'Wie trainiere ich meinen Hund, Pfötchen zu geben?', 'Was ist der beste Gaming-PC?',
+    'Kannst du mir Witze über Lehrer erzählen?', 'Wie viele Kalorien hat eine Banane?', 'Wo kann ich günstig Sneaker kaufen?', 'Wie lerne ich schneller Vokabeln?']);
+  return out;
+};
+
 /*
  * Prüfung: Fragen mit Kernpunkten.
  * keys: Liste von Gruppen. Eine Gruppe gilt als erfüllt, wenn eines ihrer Wörter in der Antwort vorkommt.

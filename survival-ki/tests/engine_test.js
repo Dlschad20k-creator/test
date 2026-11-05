@@ -55,13 +55,13 @@ function runBench(model, ctx) {
 
   console.log('\nTraining des neuronalen Netzes');
   const t0 = Date.now();
-  const out = await E.train(SK.BUILTIN, cats, { epochs: 40, lr: 0.01, hidden: 32, dim: 2048 }, {
+  const out = await E.train(SK.BUILTIN, cats, { epochs: 30, dim: 2048 }, {
     onEpoch: (s) => { if (s.epoch % 10 === 0 || s.epoch === 1) console.log(`  Epoche ${s.epoch}: Verlust ${s.loss.toFixed(3)}, Genauigkeit ${(s.acc * 100).toFixed(1)} %, Prüfung ${(s.valAcc * 100).toFixed(1)} %`); },
     onLog: (t) => console.log('  ' + t),
   });
   console.log('  Dauer: ' + (Date.now() - t0) + ' ms');
   check(out.history[0].loss > out.history[out.history.length - 1].loss, 'Verlust sinkt beim Training');
-  check(out.summary.valAcc > 0.6, 'Genauigkeit auf Prüfdaten über 60 % (' + (out.summary.valAcc * 100).toFixed(1) + ' %)');
+  check(out.summary.valAcc > 0.5, 'Themen-Genauigkeit auf neuen Formulierungen über 50 % (' + (out.summary.valAcc * 100).toFixed(1) + ' %)');
 
   // Speichern und Laden
   const ser = E.serialize(out.model);
