@@ -285,9 +285,11 @@
 
   function ollamaHelp() {
     var origin = location.origin;
-    var local = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|file:\/\/|null)$/.test(origin) || location.protocol === 'file:';
-    var box = U.el('div', { class: 'stack-sm' }, [U.el('span', null, 'Installiere Ollama von ollama.com und starte es.' + (local ? '' : ' Weil diese Seite nicht über localhost läuft, muss Ollama sie erst erlauben:'))]);
-    if (!local) {
+    var file = location.protocol === 'file:';
+    var local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    var box = U.el('div', { class: 'stack-sm' }, [U.el('span', null, 'Installiere Ollama von ollama.com und starte es.' + (local ? '' : file ? ' Als Datei geöffnete Seiten blockiert Ollama oft. Starte im Ordner der Webseite einen kleinen Webserver und öffne dann http://localhost:8000:' : ' Weil diese Seite nicht über localhost läuft, muss Ollama sie erst erlauben (am besten mit Chrome, Edge oder Firefox):'))]);
+    if (file) box.appendChild(A.cmd('python -m http.server 8000'));
+    if (!local && !file) {
       box.appendChild(U.el('span', { class: 'small' }, 'Windows (PowerShell), danach Ollama neu starten:'));
       box.appendChild(A.cmd('setx OLLAMA_ORIGINS "' + origin + '"'));
       box.appendChild(U.el('span', { class: 'small' }, 'Mac:'));

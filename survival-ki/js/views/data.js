@@ -29,7 +29,7 @@
 
   /* ---------- Bearbeiten ---------- */
   function editExample(ex) {
-    var isNew = !ex;
+    var isNew = !ex || !ex.id;
     var e = ex ? JSON.parse(JSON.stringify(ex)) : { id: null, c: state.cat || 'strom', q: '', a: '', alt: [] };
     var q = U.el('input', { type: 'text', id: 'x-q', value: e.q, placeholder: 'Wie würde jemand im Notfall fragen?' });
     var a = U.el('textarea', { id: 'x-a', rows: 10, placeholder: 'Kurze Einleitung, dann Schritte:\n1. **Wichtig:** …\n2. …\n- Punkte mit Strich' }); a.value = e.a;
