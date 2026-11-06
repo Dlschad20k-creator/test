@@ -44,6 +44,15 @@
   button:active { transform: scale(.97); }
   button[aria-pressed="true"] { background: var(--c); color: #000; border-color: var(--c); }
   .rec[aria-pressed="true"] { background: #ff3b3b; border-color: #ff3b3b; color: #fff; }
+  .level { width: 46px; height: 14px; display: inline-flex; align-items: flex-end; gap: 2px; }
+  .level i { flex: 1; background: var(--c); border-radius: 1px; height: 8%; box-shadow: 0 0 6px var(--c-dim); }
+  .unmute {
+    position: fixed; z-index: 7; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .55);
+    padding: 20px;
+  }
+  .unmute div { display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 340px; }
+  .unmute button { font-size: 20px; padding: 16px 28px; min-height: 60px; background: var(--c); color: #000; border-radius: 16px; }
+  .unmute p { margin: 0; font-size: 13px; opacity: .8; }
 
   .top {
     position: fixed; z-index: 3;
@@ -132,6 +141,7 @@
 
 <div class="top" id="top" hidden>
   <span class="brand">HANDSYNTH</span>
+  <span class="level" id="level" aria-label="Pegel"><i></i><i></i><i></i><i></i><i></i></span>
   <span class="readout" id="readout">120 BPM</span>
   <button type="button" class="rec" id="recBtn" aria-pressed="false">● REC</button>
   <button type="button" id="playBtn" aria-pressed="true">STOP</button>
@@ -189,7 +199,14 @@
       <button type="button" class="main" id="startCam">KAMERA STARTEN</button>
       <button type="button" id="startTouch">MIT TOUCH SPIELEN</button>
     </div>
-    <p class="note">Kopfhörer oder Box an. Das Kamerabild wird nur auf deinem Gerät ausgewertet.</p>
+    <p class="note">Lautstärke hoch, Kopfhörer oder Box an. Das Kamerabild wird nur auf deinem Gerät ausgewertet.</p>
+  </div>
+</div>
+
+<div class="unmute" id="unmute" hidden>
+  <div>
+    <button type="button" id="unmuteBtn">🔊 TON AN</button>
+    <p>Der Browser hat den Ton angehalten, zum Beispiel weil die Kamera gestartet ist. Tipp einmal, dann geht es weiter.</p>
   </div>
 </div>
 
@@ -495,10 +512,21 @@
     lastWasSlide = n.slide; lastDeg = n.deg;
   }
 
+  // Wie weit im Voraus geplant wird, passt sich an: hängt der Browser öfter, planen wir weiter voraus
+  let lastSched = 0, gapEst = 30;
+  function lookahead() { return clamp(gapEst / 1000 * 1.6 + 0.1, 0.15, 1.0); }
   function scheduler() {
     if (!playing) return;
+    const nowMs = performance.now();
+    if (lastSched) { const gap = nowMs - lastSched; gapEst = Math.max(gap, gapEst * 0.995); }
+    lastSched = nowMs;
     const st = 60 / settings.bpm / 4;
-    while (nextTime < AC.currentTime + 0.12) {
+    // Hing der Browser (z. B. Handerkennung), verpasste Schritte überspringen statt sie zu spät (lautlos) einzuplanen
+    if (nextTime < AC.currentTime + 0.01) {
+      while (nextTime < AC.currentTime + 0.03) { nextTime += st; step = (step + 1) % 16; }
+    }
+    const ahead = lookahead();
+    while (nextTime < AC.currentTime + ahead) {
       const swing = (step % 2 === 1) ? st * 0.04 : 0;
       scheduleStep(step, nextTime + swing);
       nextTime += st;
@@ -506,11 +534,52 @@
     }
   }
 
+  // ---- iPhone/iPad: Ton auch bei Lautlos-Schalter und nach dem Kamerastart ----
+  let keepAlive = null;
+  function silentWavUrl() {
+    const sr = 8000, n = 1600, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    w(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockAudio() {
+    // Neuere Safari-Versionen: als Musik behandeln, nicht als Systemton
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    // Ältere: ein stilles Audio-Element schaltet in den Musik-Modus
+    try {
+      if (!keepAlive) {
+        keepAlive = document.createElement('audio');
+        keepAlive.src = silentWavUrl(); keepAlive.loop = true;
+        keepAlive.setAttribute('playsinline', ''); keepAlive.setAttribute('x-webkit-airplay', 'deny');
+        keepAlive.preload = 'auto';
+      }
+      const pr = keepAlive.play(); if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) {}
+    if (AC && AC.state !== 'running') { const pr = AC.resume(); if (pr && pr.catch) pr.catch(() => {}); }
+  }
+  function checkAudioState() {
+    const stuck = playing && AC && AC.state !== 'running';
+    $('unmute').hidden = !stuck;
+  }
+  async function wakeAudio() {
+    if (!AC) return;
+    try { await AC.resume(); } catch (e) {}
+    setTimeout(checkAudioState, 400);
+  }
+
   function startAudio() {
-    if (!AC) initAudio();
-    if (AC.state === 'suspended') AC.resume();
+    unlockAudio();
+    if (!AC) {
+      initAudio();
+      AC.onstatechange = () => setTimeout(checkAudioState, 300);
+    }
+    if (AC.state !== 'running') { const pr = AC.resume(); if (pr && pr.catch) pr.catch(() => {}); }
     if (playing) return;
-    playing = true; nextTime = AC.currentTime + 0.06; step = 0;
+    playing = true; nextTime = AC.currentTime + 0.06; step = 0; lastSched = 0;
     schedTimer = setInterval(scheduler, 25);
     $('playBtn').textContent = 'STOP'; $('playBtn').setAttribute('aria-pressed', 'true');
   }
@@ -576,7 +645,7 @@
   //  Hände
   // =====================================================================
   const video = $('cam');
-  let landmarker = null, lastVideoTime = -1, camOn = false;
+  let landmarker = null, lastVideoTime = -1, lastDetect = 0, detectCost = 20, camOn = false;
   let srcW = 1280, srcH = 720;
   let W = innerWidth, H = innerHeight, dpr = 1;
   let hands = [];                    // aufbereitete Hände für Bild + Steuerung
@@ -606,9 +675,14 @@
 
   function readHands(now) {
     if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return null;
+    // höchstens ~20-mal pro Sekunde; ist die Erkennung langsam, seltener, damit Ton und Bild Vorrang haben
+    if (now - lastDetect < Math.max(48, detectCost * 2.5)) return null;
+    lastDetect = now;
     lastVideoTime = video.currentTime;
     let res;
+    const t0 = performance.now();
     try { res = landmarker.detectForVideo(video, now); } catch (e) { return null; }
+    detectCost = detectCost * 0.8 + (performance.now() - t0) * 0.2;
     const list = (res.landmarks || []).map(analyseHand).sort((a, b) => a.palm[0] - b.palm[0]);
     if (list.length === 1) list[0].side = list[0].palm[0] < W / 2 ? 'L' : 'R';
     else if (list.length === 2) { list[0].side = 'L'; list[1].side = 'R'; }
@@ -825,15 +899,23 @@
     }
   }
 
+  const camSmall = document.createElement('canvas'), camCtx = camSmall.getContext('2d');
   function drawCamera() {
     if (!camOn || settings.cam === 'aus' || video.readyState < 2) return;
     const [sx, sy] = cover();
     const vw = srcW * sx, vh = srcH * sy;
+    // Klein rechnen (billig), dann groß und weich ziehen
+    const sw = 200, sh = Math.max(1, Math.round(200 * H / W));
+    if (camSmall.width !== sw || camSmall.height !== sh) { camSmall.width = sw; camSmall.height = sh; }
+    camCtx.save();
+    camCtx.setTransform(-1, 0, 0, 1, sw, 0);
+    if (hasFilter) camCtx.filter = settings.cam === 'hell' ? 'grayscale(1) contrast(1.25) brightness(0.75)' : 'grayscale(1) contrast(1.3) brightness(0.42)';
+    camCtx.drawImage(video, (srcW - vw) / 2, (srcH - vh) / 2, vw, vh, 0, 0, sw, sh);
+    camCtx.restore();
     ctx.save();
-    ctx.translate(W * dpr, 0); ctx.scale(-1, 1);
-    if (hasFilter) ctx.filter = settings.cam === 'hell' ? 'grayscale(1) contrast(1.25) brightness(0.75)' : 'grayscale(1) contrast(1.3) brightness(0.42)';
-    else ctx.globalAlpha = settings.cam === 'hell' ? 0.6 : 0.32;
-    ctx.drawImage(video, (srcW - vw) / 2, (srcH - vh) / 2, vw, vh, 0, 0, W * dpr, H * dpr);
+    if (!hasFilter) ctx.globalAlpha = settings.cam === 'hell' ? 0.6 : 0.32;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(camSmall, 0, 0, cv.width, cv.height);
     ctx.restore();
     // einfärben
     ctx.save(); ctx.globalCompositeOperation = 'multiply';
@@ -874,6 +956,15 @@
     ctx.restore();
   }
 
+  const levelBars = [...document.querySelectorAll('#level i')];
+  let lvl = 0;
+  function updateLevel() {
+    if (!AC || !A.bufL) return;
+    let peak = 0; const b = A.bufL;
+    for (let i = 0; i < b.length; i += 8) { const v = Math.abs(b[i]); if (v > peak) peak = v; }
+    lvl = Math.max(peak, lvl * 0.85);
+    levelBars.forEach((el, i) => { el.style.height = (8 + clamp(lvl * 5 - i * 0.9) * 92) + '%'; el.style.opacity = AC.state === 'running' ? 1 : 0.3; });
+  }
   function fmtHz() { const f = 70 * Math.pow(2, (P.cutoff * 7600 + 200) / 1200); return f >= 1000 ? (f / 1000).toFixed(1) + 'k' : Math.round(f) + ''; }
 
   // ---------- Mod-Matrix-Anzeige ----------
@@ -938,6 +1029,7 @@
     }
     drawHands();
     updateMatrix();
+    updateLevel();
     $('readout').textContent = `${settings.bpm} BPM · ${STYLES[settings.style].name.toUpperCase()}`;
   }
 
@@ -951,6 +1043,7 @@
       video.srcObject = stream; await video.play();
       srcW = video.videoWidth || 1280; srcH = video.videoHeight || 720;
       camOn = true; settings.mode = 'kamera'; syncChips();
+      wakeAudio();
     } catch (e) {
       toast('Kein Kamerazugriff. Du spielst jetzt mit Touch.', 4000);
       settings.mode = 'touch'; syncChips(); return;
@@ -967,6 +1060,7 @@
       try { landmarker = await vision.HandLandmarker.createFromOptions(files, opts('GPU')); }
       catch (e) { landmarker = await vision.HandLandmarker.createFromOptions(files, opts('CPU')); }
       toast('Bereit. Zeig beide Hände.', 3000);
+      wakeAudio();
     } catch (e) {
       toast('Handerkennung ließ sich nicht laden. Touch geht trotzdem.', 4500);
       settings.mode = 'touch'; syncChips();
@@ -1061,6 +1155,9 @@
     if (mode === 'kamera') startCamera();
     else toast('Ein Finger: Filter und Resonanz. Zwei Finger: dazu Bend, LFO und Raum.', 5000);
   }
+  $('unmuteBtn').addEventListener('click', () => { unlockAudio(); wakeAudio(); });
+  addEventListener('pointerdown', () => { if (playing && AC && AC.state !== 'running') unlockAudio(); }, true);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && playing) { unlockAudio(); wakeAudio(); } });
   $('startCam').addEventListener('click', () => enter('kamera'));
   $('startTouch').addEventListener('click', () => enter('touch'));
 
