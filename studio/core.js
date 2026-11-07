@@ -151,12 +151,18 @@ void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
   let landmarker = null, lastDetect = 0, detectCost = 16, hzCount = 0, hzT = 0;
   const FINGERS = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20]];
 
+  let visionP = null;
+  S.loadVision = () => visionP || (visionP = (async () => {
+    const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+    const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    return { vision, files };
+  })());
   async function initTracker() {
     if (landmarker) return;
+    if (S.mode && S.mode.noHands) { S.toast('Kamera bereit.', 1500); return; }
     S.toast('Lade Handerkennung …', 8000);
     try {
-      const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
-      const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+      const { vision, files } = await S.loadVision();
       const opts = delegate => ({
         baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate },
         runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.55, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
@@ -179,7 +185,7 @@ void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
     else requestAnimationFrame(() => { if (v.currentTime !== lastVT) { lastVT = v.currentTime; runDetect(); } loopDetect(); });
   }
   function runDetect() {
-    if (!S.camOn || !landmarker || S.video.readyState < 2 || S.settings.input !== 'kamera') return;
+    if (!S.camOn || !landmarker || S.video.readyState < 2 || S.settings.input !== 'kamera' || (S.mode && S.mode.noHands)) return;
     const now = performance.now();
     if (now - lastDetect < detectCost * 1.3 - 6) return;   // nur wenn das Gerät zu langsam ist, Bilder auslassen
     lastDetect = now;
@@ -512,6 +518,7 @@ void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
     if (S.AC && m.enter) m.enter();
     seq.next = S.AC ? S.AC.currentTime + 0.12 : 0; seq.step = 0; seq.bar = 0; seq.hist.length = 0;
     S.setDelay(60 / m.bpm() / 4 * 3);
+    if (!m.noHands && S.camOn && !landmarker) initTracker();
     buildMatrix(); buildModeSettings(); syncTabs();
     if (location.hash !== '#' + m.id) history.replaceState(null, '', '#' + m.id);
     if (m.hint && !$('top').hidden) S.toast(m.hint, 5000);
@@ -541,7 +548,11 @@ void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
     for (const it of (m.settings || [])) {
       const g = document.createElement('div'); g.className = 'group';
       const sp = document.createElement('span'); sp.textContent = it.label; g.append(sp);
-      if (it.type === 'file') {
+      if (it.type === 'action') {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = it.button; b.addEventListener('click', () => { it.onClick(); $('drawer').hidden = true; });
+        const c = document.createElement('div'); c.className = 'chips'; c.append(b); g.append(c);
+        if (it.text) { const p = document.createElement('p'); p.textContent = it.text; g.append(p); }
+      } else if (it.type === 'file') {
         const p = document.createElement('p'); p.textContent = it.text || ''; g.append(p);
         const lab = document.createElement('label'); lab.className = 'file';
         const b = document.createElement('button'); b.type = 'button'; b.tabIndex = -1; b.textContent = it.button || 'DATEI LADEN';
