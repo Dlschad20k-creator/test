@@ -69,3 +69,53 @@ python qc.py out.mp4 <work>/frames <work>/audio/mix.wav <work>/fonts qc_report.j
 
 Blender (GPL), Piper TTS (MIT) mit den Thorsten-Stimmen (frei nutzbar), Montserrat und Press Start 2P
 (SIL Open Font License), ffmpeg (LGPL/GPL). Musik und Geräusche sind selbst synthetisiert.
+
+## Produktionsbericht (Lauf vom 07./08.11.2026)
+
+Alle Angaben unten sind gemessen bzw. von `qc.py` geprüft.
+
+### Ergebnis
+
+| Datei | Größe | Inhalt |
+|---|---|---|
+| `Crackie_The_Living_Mirror.mp4` | 352,4 MB | Master: H.264 High, CRF 18, AAC 192 kbit/s |
+| `Crackie_The_Living_Mirror_Handy.mp4` | 138,1 MB | Zum Hochladen (TikTok/Reels/Shorts): H.264 High, ≈ 9,2 Mbit/s, gleicher Ton |
+
+Qualitätskontrolle – beide Dateien **bestanden** (15 Prüfungen):
+1080×1920 · 24 fps · 120,000 s · 2880 Frames · H.264 High yuv420p · AAC 48 kHz Stereo ·
+Lautheit −14,6 LUFS · True Peak −1,8 dBFS · 18 Dialogeinsätze mit 0,00 s Versatz zur Zeitleiste ·
+Sprachspur ohne Versatz in der Mischung · 29 Untertitel, alle ≤ 2 Zeilen ·
+einziger Schwarzbild-Abschnitt 115,6–116,0 s (geplant: „Licht aus“, danach Endkarten).
+
+### Rendering
+
+- Blender 5.2.3 (Cycles, CPU, 4 Kerne, keine GPU in dieser Umgebung), 540×960, 6 Samples + OpenImageDenoise,
+  Bewegungsunschärfe, schnelle GI-Näherung; in der Nachbearbeitung auf 1080×1920 hochskaliert.
+- Szenen einzeln gerendert: Szene 1 288 Frames / 1316 s · 2: 360 / 1939 s · 3: 360 / 1944 s · 4: 384 / 1998 s ·
+  5: 408 / 2027 s · 6: 456 (davon 396 im zweiten Lauf / 1708 s) · 7: 384 / 1465 s · 8: 240 / 917 s.
+  Ø 4,7 s pro Frame, gesamt ≈ 3,8 h.
+- Während Szene 6 wurde die Rechenumgebung neu gestartet (Abbruch bei Frame 1860). Dank Checkpoints wurde
+  nur der Rest neu gerendert; kein Frame musste doppelt berechnet werden.
+- Szene: ≈ 992.000 Keyframes, 35 Kameraeinstellungen.
+
+### Ehrliche Einschränkungen
+
+- Das Video wurde hier per CPU in halber Auflösung gerendert und hochskaliert. Das Colab-Notebook rendert
+  mit GPU nativ in 1080×1920 – es ist geschrieben und seine Download-Quellen sind geprüft, ein vollständiger
+  Lauf in Google Colab konnte von hier aus aber nicht getestet werden.
+- Google Drive ist aus dieser Umgebung nicht erreichbar; das Video wurde direkt übergeben. Das Notebook speichert in Drive.
+- „Volumetrische“ Lichtstrahlen sind aus Render-Zeitgründen vorgetäuscht (leuchtende, halbtransparente Strahlen).
+- Erzähler, Crackie und Doppelgänger nutzen die freien Thorsten-Stimmen (Piper), unterschieden durch Sprechstil,
+  Tonhöhe und Effekte. Kein Voice-Cloning.
+- Lippen-Sync folgt der Lautstärke (Mund offen/halb/zu), nicht einzelnen Lauten.
+- Durch Crackies großen Voxelkopf verdeckt der Kopf in einigen Über-die-Schulter-Einstellungen einen Teil des Bildes.
+- Der Mittelfinger-Gag ist in der Nachbearbeitung verpixelt und mit Piepton versehen.
+
+### Viralitäts-Regeln
+
+- Erste Sekunde: Glitch, die Augen des Spiegelbilds schnappen zur Kamera, großer Hook-Titel.
+- Neuer Reiz alle 3–7 s: 35 Einstellungen in 120 s (Ø 3,4 s) plus Szenentitel, Glitches, Blitze, Lautmalerei.
+- Überraschungen: Zwinkern, Mittelfinger, Spiegel wird Tür, Doppelgänger steigt heraus, leerer Boden,
+  eigenständiger Schatten mit leuchtenden Augen, Doppelgänger im Spiegel.
+- Twist am Ende: Licht aus, nur die violetten Augen bleiben.
+- Ohne Ton verständlich: Untertitel (Farbe je Sprecher) und 10 Lautmalerei-Einblendungen (KNACK!, KLIRRR!, BONK! …).

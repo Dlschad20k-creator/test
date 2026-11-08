@@ -366,7 +366,7 @@ def main():
     mj = json.loads(p1.stderr[p1.stderr.rindex('{'):p1.stderr.rindex('}') + 1])
     af = (f"loudnorm=I=-14:TP=-2:LRA=9:measured_I={mj['input_i']}:measured_TP={mj['input_tp']}:"
           f"measured_LRA={mj['input_lra']}:measured_thresh={mj['input_thresh']}:offset={mj['target_offset']}:linear=true,"
-          f"alimiter=limit=0.79:attack=2:release=60:level=false")
+          f"aresample=192000,alimiter=limit=0.63:attack=1:release=50:level=false,aresample=48000")   # 4x überabgetastet: True Peak
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mix, '-af', af, '-ar', '48000',
                     '-c:a', 'aac', '-b:a', '192k', norm], check=True)
     t_first, n_fr = (f_first - 1) / FPS, f_last - f_first + 1
