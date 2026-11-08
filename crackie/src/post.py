@@ -341,6 +341,9 @@ def main():
     a = sys.argv[1:]
     frames, meta_p, fontdir, mix, out = a[:5]
     draft = '--draft' in a
+    f_first, f_last = 1, FRAMES
+    if '--range' in a:
+        f_first, f_last = map(int, a[a.index('--range') + 1].split('-'))
     meta = json.load(open(meta_p))
     durations = {}
     vd = os.path.join(os.path.dirname(mix), 'voice', 'durations.json')
@@ -354,17 +357,18 @@ def main():
     norm = os.path.splitext(out)[0] + '_audio.m4a'
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mix, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=9', '-ar', '48000',
                     '-c:a', 'aac', '-b:a', '192k', norm], check=True)
+    t_first, n_fr = (f_first - 1) / FPS, f_last - f_first + 1
     cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WIDTH}x{HEIGHT}', '-r', str(FPS),
-           '-i', '-', '-i', norm, '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'veryfast' if draft else 'medium',
+           '-i', '-', '-ss', f'{t_first:.4f}', '-i', norm, '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'veryfast' if draft else 'medium',
            '-crf', '23' if draft else '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '4.2',
-           '-c:a', 'copy', '-t', str(FRAMES / FPS), '-movflags', '+faststart', out]
+           '-c:a', 'aac', '-b:a', '192k', '-t', f'{n_fr / FPS:.4f}', '-movflags', '+faststart', out]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     procs = int(os.environ.get('POST_PROCS', os.cpu_count() or 2))
     with Pool(procs, initializer=init, initargs=(g,)) as pool:
-        for i, buf in enumerate(pool.imap(render_frame, range(1, FRAMES + 1), chunksize=4)):
+        for i, buf in enumerate(pool.imap(render_frame, range(f_first, f_last + 1), chunksize=4)):
             p.stdin.write(buf)
             if i % 240 == 0:
-                print(f'post {i}/{FRAMES}', flush=True)
+                print(f'post {i}/{n_fr}', flush=True)
     p.stdin.close()
     p.wait()
     print('VIDEO', out, 'rc', p.returncode)
