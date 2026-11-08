@@ -1,0 +1,7 @@
+__pycache__/
+*.blend
+*.blend1
+frames/
+preview/
+*.wav
+*.mp4
