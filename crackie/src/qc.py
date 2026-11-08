@@ -62,23 +62,25 @@ def main():
     R['loudness'] = {'integrated_lufs': lufs, 'true_peak_dbfs': tp}
     check('Lautheit ca. -14 LUFS (±1,5)', lufs is not None and abs(lufs + 14) <= 1.5, f'{lufs} LUFS, True Peak {tp} dBFS')
     check('True Peak ≤ -1 dBFS', tp is not None and tp <= -1.0, f'{tp} dBFS')
-    # Ton an jedem Dialogeinsatz (Synchronität Ton/Zeitleiste)
-    with wave.open(mix) as w:
-        sr = w.getframerate()
-        x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32).reshape(-1, 2).mean(1) / 32768
+    # Ton an jedem Dialogeinsatz (Synchronität Ton/Zeitleiste) – geprüft an der Sprachspur (voice.wav),
+    # danach wird geprüft, dass die Sprachspur ohne Versatz in der Mischung liegt.
+    def load(p):
+        with wave.open(p) as w:
+            sr_ = w.getframerate(); ch_ = w.getnchannels()
+            d_ = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32).reshape(-1, ch_).mean(1) / 32768
+        return d_, sr_
+    vstem, sr = load(os.path.join(os.path.dirname(mix), 'voice.wav'))
+    xmix, _ = load(mix)
     vd = os.path.join(os.path.dirname(mix), 'voice')
-    bad = []
+    hop = sr // 100
+    env = lambda s_: np.sqrt(np.convolve(s_ ** 2, np.ones(hop) / hop, 'same'))[::hop]
+    bad, offs = [], []
     for ln in LINES:
-        with wave.open(os.path.join(vd, ln['id'] + '.wav')) as w:
-            vs = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32).reshape(-1, w.getnchannels()).mean(1) / 32768
-            vsr = w.getframerate()
-        # Kreuzkorrelation der Hüllkurven um den geplanten Einsatz (±0,5 s)
-        hop = sr // 100
-        seg = x[int((ln['t'] - 0.5) * sr): int((ln['t'] + 2.5) * sr)]
-        e_mix = np.sqrt(np.convolve(seg ** 2, np.ones(hop) / hop, 'same'))[::hop]
-        vv = vs[: int(2.0 * vsr)]
-        hopv = vsr // 100
-        e_v = np.sqrt(np.convolve(vv ** 2, np.ones(hopv) / hopv, 'same'))[::hopv]
+        vs, vsr = load(os.path.join(vd, ln['id'] + '.wav'))
+        if vsr != sr:
+            continue
+        seg = vstem[int((ln['t'] - 0.5) * sr): int((ln['t'] + 2.5) * sr)]
+        e_mix = env(seg); e_v = env(vs[: int(2.0 * sr)])
         best, lag = -1, 0
         for k in range(0, 100):
             n = min(len(e_v), len(e_mix) - k)
@@ -88,9 +90,17 @@ def main():
             if c > best:
                 best, lag = c, k
         off = (lag - 50) / 100
-        if abs(off) > 0.08:
+        offs.append((ln['id'], off, round(float(best), 2)))
+        if abs(off) > 0.08 or best < 0.8:
             bad.append((ln['id'], round(off, 3), round(float(best), 2)))
-    check('Dialog liegt zeitgenau auf der Zeitleiste (±80 ms)', not bad, f'Abweichungen: {bad}' if bad else f'{len(LINES)} Einsätze geprüft')
+    R['dialog_sync'] = offs
+    check('Dialog liegt zeitgenau auf der Zeitleiste (±80 ms)', not bad, f'Abweichungen: {bad}' if bad else f'{len(LINES)} Einsätze, max. Versatz {max(abs(o[1]) for o in offs):.2f} s')
+    em, ev = env(xmix), env(vstem)
+    n = min(len(em), len(ev))
+    lags = list(range(-20, 21))
+    cc = [np.corrcoef(em[max(0, l):n + min(0, l)], ev[max(0, -l):n - max(0, l)])[0, 1] for l in lags]
+    best_lag = lags[int(np.argmax(cc))] / 100
+    check('Sprachspur liegt ohne Versatz in der Mischung', abs(best_lag) <= 0.02, f'Versatz {best_lag:+.2f} s')
     # Untertitel max. 2 Zeilen
     subs_p = os.path.splitext(video)[0] + '_subs.json'
     if os.path.exists(subs_p):

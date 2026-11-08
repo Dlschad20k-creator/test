@@ -77,17 +77,19 @@ def ease_out_back(u):
 SPK_COL = {'erzaehler': (255, 255, 255, 255), 'crackie': (255, 214, 64, 255), 'dunkel': (200, 120, 255, 255)}
 
 
-def plan_subs(durations):
-    """Teilt lange Sätze in Häppchen mit höchstens 2 Zeilen (je ~26 Zeichen)."""
+def plan_subs(durations, fit=None):
+    """Teilt Sätze in Häppchen, die höchstens 2 Zeilen belegen (fit(text) -> Zeilenzahl, mit echter Schriftbreite).
+    s8_vo steht als große Endkarte im Bild und bekommt keinen zusätzlichen Untertitel."""
     subs = []
     for ln in LINES:
-        if ln['id'] == 's8_laugh':
+        if ln['id'] in ('s8_laugh', 's8_vo'):
             continue
         dur = durations.get(ln['id'], 2.0)
         parts, cur = [], ''
         for w in ln['text'].split():
             t = (cur + ' ' + w).strip()
-            if len(t) > 46 and cur:
+            too_long = (fit(t) > 2) if fit else len(t) > 46
+            if too_long and cur:
                 parts.append(cur); cur = w
             else:
                 cur = t
@@ -303,8 +305,9 @@ def render_frame(fr):
             text_block(img, [word], f, WIDTH * 0.5 + 120 * math.sin(tp * 3), rot_y, col + (255,), 10,
                        alpha=al, scale=max(0.01, sc))
     # Untertitel (max. 2 Zeilen, oberhalb der App-Bedienelemente)
-    for s in G['subs']:
-        if s['t0'] <= t < s['t1']:
+    active = [s for s in G['subs'] if s['t0'] <= t < s['t1']]
+    for s in sorted(active, key=lambda x: x['t0'])[-1:]:      # immer nur der neueste Untertitel
+        if True:
             f = font('Montserrat-ExtraBold.ttf', 58)
             lines = wrap(s['text'], f, 860, d)[:2]
             al = min(1.0, (t - s['t0']) / 0.08, (s['t1'] - t) / 0.08)
@@ -350,12 +353,21 @@ def main():
     if os.path.exists(vd):
         durations = json.load(open(vd))
     avail = sorted(int(f[1:5]) for f in os.listdir(frames) if f.startswith('f') and f.endswith('.png') and 'tmp' not in f)
-    g = dict(frames=frames, fontdir=fontdir, draft=draft, censor=meta.get('censor', {}), subs=plan_subs(durations),
+    _f = ImageFont.truetype(os.path.join(fontdir, 'Montserrat-ExtraBold.ttf'), 58)
+    _d = ImageDraw.Draw(Image.new('RGB', (10, 10)))
+    fit = lambda txt: len(wrap(txt, _f, 860, _d))
+    g = dict(frames=frames, fontdir=fontdir, draft=draft, censor=meta.get('censor', {}), subs=plan_subs(durations, fit),
              avail_idx=avail)
     json.dump(g['subs'], open(os.path.splitext(out)[0] + '_subs.json', 'w'), indent=1, ensure_ascii=False)
-    # Ton auf -14 LUFS bringen
+    # Ton auf -14 LUFS bringen (zwei Durchgänge) und True Peak per Limiter unter -1,5 dBFS halten
     norm = os.path.splitext(out)[0] + '_audio.m4a'
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mix, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=9', '-ar', '48000',
+    p1 = subprocess.run(['ffmpeg', '-hide_banner', '-i', mix, '-af', 'loudnorm=I=-14:TP=-2:LRA=9:print_format=json',
+                         '-f', 'null', '-'], capture_output=True, text=True)
+    mj = json.loads(p1.stderr[p1.stderr.rindex('{'):p1.stderr.rindex('}') + 1])
+    af = (f"loudnorm=I=-14:TP=-2:LRA=9:measured_I={mj['input_i']}:measured_TP={mj['input_tp']}:"
+          f"measured_LRA={mj['input_lra']}:measured_thresh={mj['input_thresh']}:offset={mj['target_offset']}:linear=true,"
+          f"alimiter=limit=0.79:attack=2:release=60:level=false")
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mix, '-af', af, '-ar', '48000',
                     '-c:a', 'aac', '-b:a', '192k', norm], check=True)
     t_first, n_fr = (f_first - 1) / FPS, f_last - f_first + 1
     cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{WIDTH}x{HEIGHT}', '-r', str(FPS),
